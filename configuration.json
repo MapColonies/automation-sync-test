@@ -1,0 +1,15 @@
+{
+  "environment": {
+    "name": "QA",
+    "sync_type": "coreA",
+    "debug": true,
+    "debug_log": true,
+    "storage": "S3"
+  },
+  "api_routes": {
+    "trigger_nifi": "fsf",
+    "job_manager": "fsf",
+    "layer_spec": "dsfsf",
+    "sync_trigger_api": "/synchronize/trigger"
+  }
+}+
