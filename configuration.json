@@ -4,12 +4,25 @@
     "sync_type": "coreA",
     "debug": true,
     "debug_log": true,
-    "storage": "S3"
+    "storage": "S3",
+    "storage_adapter": "NFS"
   },
   "api_routes": {
-    "trigger_nifi": "fsf",
-    "job_manager": "fsf",
+    "trigger_nifi": "http://10.8.1.31:5557",
+    "job_manager": "https://job-manager-qa-job-manager-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
     "layer_spec": "dsfsf",
-    "sync_trigger_api": "/synchronize/trigger"
+    "sync_trigger_api": "/synchronize/trigger",
+    "pycsw_url": "http://catalog-qa-raster-catalog-pycsw-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
+    "mapproxy_url": "http://mapproxy-qa-map-proxy-map-proxy-route-raster.apps.v0h0bdx6.eastus.aroapp.io"
+  },
+  "discrete_ingestion_credential": {
+    "agent_url": "https://discrete-agent-qa-agent-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
+    "pycsw_url": "http://catalog-qa-raster-catalog-pycsw-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
+    "pvc_handler_url": "https://pvc-qa-discrete-ingestion-qa-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
+    "discrete_raw_root_dir": "/tmp",
+    "discrete_raw_src_dir": "ingestion/1",
+    "discrete_raw_dst_dir": "ingestion/2",
+    "change_max_zoom_level": true,
+    "max_zoom_level": 4
   }
-}+
+}

@@ -3,6 +3,7 @@ This module wrap the relevant api access to trigger sync process via NIFI api
 """
 from sync_tester.configuration import config
 from mc_automation_tools import base_requests, common
+
 sync_trigger_body = {
     'resourceId': 'fill resource id',
     'version': 'fill version',

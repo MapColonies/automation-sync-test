@@ -3,6 +3,13 @@ import json
 
 from mc_automation_tools import common
 
+class EnvironmentTypes(enum.Enum):
+    """
+    Types of environment.
+    """
+    QA = 1
+    DEV = 2
+    PROD = 3
 
 class ResponseCode(enum.Enum):
     """
@@ -53,6 +60,7 @@ SYNC_TYPE = environment.get('sync_type', 'QA')
 DEBUG = environment.get('debug', True)
 DEBUG_LOG = environment.get('debug_log', True)
 STORAGE = environment.get('storage', "S3")
+STORAGE_ADAPTER = environment.get('storage_adapter', "PVC")
 
 # ================================================= api's routes =======================================================
 endpoints_routes = conf.get('api_routes')
@@ -61,7 +69,15 @@ SYNC_TRIGGER_API = endpoints_routes.get('sync_trigger_api', 'https://')
 JOB_MANAGER_ROUTE = endpoints_routes.get('job_manager', 'https://')
 LAYER_SPEC_ROUTE = endpoints_routes.get('layer_spec', 'https://')
 
-
+# ============================================= discrete ingestion =====================================================
+endpoints_discrete_ingestion = conf.get('discrete_ingestion_credential')
+DISCRETE_JOB_MANAGER_URL = endpoints_discrete_ingestion.get('agent_url', 'https://')
+PVC_HANDLER_URL = endpoints_discrete_ingestion.get('pvc_handler_url', 'https://')
+DISCRETE_RAW_ROOT_DIR = endpoints_discrete_ingestion.get('discrete_raw_root_dir', '/tmp')
+DISCRETE_RAW_SRC_DIR = endpoints_discrete_ingestion.get('discrete_raw_src_dir', 'ingestion/1')
+DISCRETE_RAW_DST_DIR = endpoints_discrete_ingestion.get('discrete_raw_dst_dir', 'ingestion/2')
+PVC_UPDATE_ZOOM = endpoints_discrete_ingestion.get('change_max_zoom_level', True)
+MAX_ZOOM_LEVEL = endpoints_discrete_ingestion.get('max_zoom_level', 4)
 
 
 # todo
