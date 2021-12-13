@@ -19,10 +19,16 @@
     "agent_url": "https://discrete-agent-qa-agent-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
     "pycsw_url": "http://catalog-qa-raster-catalog-pycsw-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
     "pvc_handler_url": "https://pvc-qa-discrete-ingestion-qa-route-raster.apps.v0h0bdx6.eastus.aroapp.io",
-    "discrete_raw_root_dir": "/tmp",
+    "discrete_raw_root_dir": "/layerSources/",
     "discrete_raw_src_dir": "ingestion/1",
     "discrete_raw_dst_dir": "ingestion/2",
+    "nfs_raw_root_dir": "/tmp/",
+    "nfs_raw_src_dir": "ingestion/1",
+    "nfs_raw_dst_dir": "ingestion/2",
     "change_max_zoom_level": true,
-    "max_zoom_level": 4
+    "max_zoom_level": 4,
+    "failure_tag": false,
+    "ingestion_timeout": 300,
+    "buffer_timeout": 70
   }
 }

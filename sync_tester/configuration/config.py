@@ -33,12 +33,14 @@ class SyncOperationType(enum.Enum):
     UPDATE = 'UPDATE'
     REMOVE = 'REMOVE'
 
+
 class ProductType(enum.Enum):
     """
     Types of products
     """
     orthphoto = 'orthophoto'
     orthophoto_history = 'orthophotoHistory'
+
 
 JOB_MANAGER_TYPE = {
     'discrete_tiling': 'Discrete-Tiling'
@@ -76,9 +78,41 @@ PVC_HANDLER_URL = endpoints_discrete_ingestion.get('pvc_handler_url', 'https://'
 DISCRETE_RAW_ROOT_DIR = endpoints_discrete_ingestion.get('discrete_raw_root_dir', '/tmp')
 DISCRETE_RAW_SRC_DIR = endpoints_discrete_ingestion.get('discrete_raw_src_dir', 'ingestion/1')
 DISCRETE_RAW_DST_DIR = endpoints_discrete_ingestion.get('discrete_raw_dst_dir', 'ingestion/2')
+NFS_RAW_ROOT_DIR = endpoints_discrete_ingestion.get('nfs_raw_root_dir', '/tmp')
+NFS_RAW_SRC_DIR = endpoints_discrete_ingestion.get('nfs_raw_src_dir', 'ingestion/1')
+NFS_RAW_DST_DIR = endpoints_discrete_ingestion.get('nfs_raw_dst_dir', 'ingestion/2')
 PVC_UPDATE_ZOOM = endpoints_discrete_ingestion.get('change_max_zoom_level', True)
 MAX_ZOOM_LEVEL = endpoints_discrete_ingestion.get('max_zoom_level', 4)
+FAILURE_FLAG = endpoints_discrete_ingestion.get('failure_tag', False)
+INGESTION_TIMEOUT = endpoints_discrete_ingestion.get('ingestion_timeout', 300)
+BUFFER_TIMEOUT = endpoints_discrete_ingestion.get('buffer_timeout', 70)
 
+# mapping of zoom level and related resolution values
+zoom_level_dict = {
+    0: 0.703125,
+    1: 0.3515625,
+    2: 0.17578125,
+    3: 0.087890625,
+    4: 0.0439453125,
+    5: 0.02197265625,
+    6: 0.010986328125,
+    7: 0.0054931640625,
+    8: 0.00274658203125,
+    9: 0.001373291015625,
+    10: 0.0006866455078125,
+    11: 0.00034332275390625,
+    12: 0.000171661376953125,
+    13: 0.0000858306884765625,
+    14: 0.0000429153442382812,
+    15: 0.0000214576721191406,
+    16: 0.0000107288360595703,
+    17: 0.00000536441802978516,
+    18: 0.00000268220901489258,
+    19: 0.00000134110450744629,
+    20: 0.000000670552253723145,
+    21: 0.000000335276126861572,
+    22: 0.000000167638063430786
+}
 
 # todo
 """

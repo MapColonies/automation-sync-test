@@ -1,7 +1,6 @@
 """This module will provide main functionality to run discrete ingestion"""
 import logging
 import json
-import os
 from sync_tester.configuration import config
 from mc_automation_tools.ingestion_api import agent_api
 _log = logging.getLogger('sync_tester.functions.discrete_ingestion_executors')
@@ -70,10 +69,21 @@ def start_agent_watch():
         raise Exception(f'Failed on stop watching process with error: [{str(e)}]')
 
 
-def send_agent_manual_ingest():
+def send_agent_manual_ingest(source_dir):
     """
     This method will trigger manual ingestion by providing relative path for ingestion
-    :return:
+    :param source_dir: relative path to discrete raw + meta data
+    :return: uuid [jobId]
     """
+    if config.ENV_NAME == config.EnvironmentTypes.QA.name or config.ENV_NAME == config.EnvironmentTypes.DEV.name:
+        relative_path = source_dir.split(config.DISCRETE_RAW_ROOT_DIR)[1]
+    elif config.ENV_NAME == config.EnvironmentTypes.PROD.name:
+        relative_path = config.NFS_DEST_DIR
+
+    resp = agent_ins.post_manual_trigger(relative_path)
+    status_code = resp.status_code
+    content = resp.text
+    return status_code, content
+
 
 
