@@ -6,7 +6,7 @@ import json
 import os
 import logging
 from sync_tester.configuration import config
-from mc_automation_tools import shape_convertor, common
+from mc_automation_tools import shape_convertor, common, s3storage
 from mc_automation_tools.ingestion_api import azure_pvc_api
 from discrete_kit.functions import metadata_convertor, shape_functions
 from discrete_kit.configuration import config as cfg
@@ -115,7 +115,7 @@ class DataManager:
 
         elif self.__env == config.EnvironmentTypes.PROD.name:
             try:
-                file = os.path.join(self.__get_folder_path_by_name(self._dst_dir, self.__shape), self.__shape_metadata_file)
+                file = os.path.join(self._get_folder_path_by_name(self.__shape), self.__shape_metadata_file)
                 if config.FAILURE_FLAG:
                     source_name = self.__update_shape_fs_to_failure(file)
                 else:
@@ -237,11 +237,6 @@ class DataManager:
         else:
             raise Exception(f'illegal Environment name: [{self.__env}]')
 
-    def __get_folder_path_by_name(self, path, name):
-        p_walker = [x[0] for x in os.walk(path)]
-        path = ("\n".join(s for s in p_walker if name.lower() in s.lower()))
-        return path
-
     def __update_shape_fs_to_failure(self, shp):
         resp = shape_convertor.add_ext_source_name(shp, 'duplication')
         return resp
@@ -314,3 +309,29 @@ class DataManager:
             return x, err
         else:
             return x, ""
+
+    def count_tiles_on_storage(self, product_id, product_version, tiles_format='png'):
+        """
+        This method count for total amount of tiles images on storage FS | S3
+        :param product_id: discrete resource id
+        :param product_version: version of discrete
+        :return: int -> number of
+        """
+        if config.STORAGE_TILES == "S3":
+            _log.info(f'Collect total amount of tiles on S3 for layer: {product_id}-{product_version}\n'
+                      f'For object_key: [{"/".join([product_id, product_version])}]')
+            s3_conn = s3storage.S3Client(config.S3_ENDPOINT_URL, config.S3_ACCESS_KEY, config.S3_SECRET_KEY)
+            object_key = "/".join([product_id, product_version])
+            tiles_list = s3_conn.list_folder_content(config.S3_BUCKET_NAME, object_key)
+            _log.info(f'Total tiles count: [{len(tiles_list)}]')
+            return len(tiles_list)
+
+        elif config.STORAGE_TILES == "FS":
+            _log.info(f'Collect total amount of tiles on FS for layer: {product_id}-{product_version}\n'
+                      f'For directory: [{os.path.join(config.NFS_RAW_ROOT_DIR, config.TILES_RELATIVE_PATH, product_id, product_version)}]')
+            tiles_dir = os.path.join(config.NFS_RAW_ROOT_DIR, config.TILES_RELATIVE_PATH, product_id, product_version)
+            tiles_list = glob.glob(tiles_dir + f"/**/*.{tiles_format}", recursive=True)
+            _log.info(f'Total tiles count: [{len(tiles_list)}]')
+            return len(tiles_list)
+        else:
+            raise Exception(f'illegal Tiles Storage provider name: [{config.STORAGE_TILES}]')

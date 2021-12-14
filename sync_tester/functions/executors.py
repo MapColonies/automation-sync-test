@@ -31,6 +31,7 @@ def run_ingestion():
               f'Storage adapter: {config.STORAGE_ADAPTER}\n'
               f'Source Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR, config.DISCRETE_RAW_SRC_DIR)}\n'
               f'Destination Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR, config.DISCRETE_RAW_DST_DIR)}')
+
     # ======================================== Ingestion data prepare ==================================================
     data_manager = data_executors.DataManager(config.ENV_NAME, watch=False)
     res = data_manager.init_ingestion_src()
@@ -41,6 +42,7 @@ def run_ingestion():
               f'Source on dir: {res["ingestion_dir"]}\n'
               f'SourceId: {res["resource_name"]}\n'
               f'------------------------------------- End of ingestion data preparation ----------------------------------\n')
+    
     # ============================================= Run ingestion ======================================================
     _log.info('\n********************************* Start Discrete ingestion ***************************************** ')
     _log.info(f'Run data validation on source data')
@@ -63,8 +65,20 @@ def run_ingestion():
                                                timeout=config.INGESTION_TIMEOUT,
                                                internal_timeout=config.BUFFER_TIMEOUT)
     _log.info(f'\n------------------------------ Discrete ingestion complete -------------------------------------------')
+    return {'state':True ,'product_id': ingestion_data['product_id'], 'product_version': ingestion_data['product_version']}
     # ========================================= start sync from core A =================================================
 
+
+def count_tiles_amount(product_id, product_version):
+    """
+
+    :param product_id: str -> resource id of the layer to sync
+    :param product_version: version of discrete
+    :return: int -> total amount of tiles
+    """
+    data_manager = data_executors.DataManager(config.ENV_NAME, watch=False)
+    res = data_manager.count_tiles_on_storage(product_id, product_version)
+    return res
 
 def trigger_orthphoto_history_sync(product_id, product_version):
     """

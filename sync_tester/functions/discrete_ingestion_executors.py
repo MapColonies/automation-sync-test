@@ -78,7 +78,7 @@ def send_agent_manual_ingest(source_dir):
     if config.ENV_NAME == config.EnvironmentTypes.QA.name or config.ENV_NAME == config.EnvironmentTypes.DEV.name:
         relative_path = source_dir.split(config.DISCRETE_RAW_ROOT_DIR)[1]
     elif config.ENV_NAME == config.EnvironmentTypes.PROD.name:
-        relative_path = config.NFS_DEST_DIR
+        relative_path = config.NFS_RAW_DST_DIR
 
     resp = agent_ins.post_manual_trigger(relative_path)
     status_code = resp.status_code

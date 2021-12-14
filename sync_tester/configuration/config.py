@@ -62,7 +62,9 @@ SYNC_TYPE = environment.get('sync_type', 'QA')
 DEBUG = environment.get('debug', True)
 DEBUG_LOG = environment.get('debug_log', True)
 STORAGE = environment.get('storage', "S3")
-STORAGE_ADAPTER = environment.get('storage_adapter', "PVC")
+STORAGE_ADAPTER = environment.get('storage_adapter', "PVC"),
+STORAGE_TILES = environment.get('storage_tiles', "S3")
+TILES_RELATIVE_PATH = environment.get('tiles_relative_path', "tiles")
 
 # ================================================= api's routes =======================================================
 endpoints_routes = conf.get('api_routes')
@@ -72,20 +74,38 @@ JOB_MANAGER_ROUTE = endpoints_routes.get('job_manager', 'https://')
 LAYER_SPEC_ROUTE = endpoints_routes.get('layer_spec', 'https://')
 
 # ============================================= discrete ingestion =====================================================
-endpoints_discrete_ingestion = conf.get('discrete_ingestion_credential')
-DISCRETE_JOB_MANAGER_URL = endpoints_discrete_ingestion.get('agent_url', 'https://')
-PVC_HANDLER_URL = endpoints_discrete_ingestion.get('pvc_handler_url', 'https://')
-DISCRETE_RAW_ROOT_DIR = endpoints_discrete_ingestion.get('discrete_raw_root_dir', '/tmp')
-DISCRETE_RAW_SRC_DIR = endpoints_discrete_ingestion.get('discrete_raw_src_dir', 'ingestion/1')
-DISCRETE_RAW_DST_DIR = endpoints_discrete_ingestion.get('discrete_raw_dst_dir', 'ingestion/2')
-NFS_RAW_ROOT_DIR = endpoints_discrete_ingestion.get('nfs_raw_root_dir', '/tmp')
-NFS_RAW_SRC_DIR = endpoints_discrete_ingestion.get('nfs_raw_src_dir', 'ingestion/1')
-NFS_RAW_DST_DIR = endpoints_discrete_ingestion.get('nfs_raw_dst_dir', 'ingestion/2')
-PVC_UPDATE_ZOOM = endpoints_discrete_ingestion.get('change_max_zoom_level', True)
-MAX_ZOOM_LEVEL = endpoints_discrete_ingestion.get('max_zoom_level', 4)
-FAILURE_FLAG = endpoints_discrete_ingestion.get('failure_tag', False)
-INGESTION_TIMEOUT = endpoints_discrete_ingestion.get('ingestion_timeout', 300)
-BUFFER_TIMEOUT = endpoints_discrete_ingestion.get('buffer_timeout', 70)
+_endpoints_discrete_ingestion = conf.get('discrete_ingestion_credential')
+DISCRETE_JOB_MANAGER_URL = _endpoints_discrete_ingestion.get('agent_url', 'https://')
+PVC_HANDLER_URL = _endpoints_discrete_ingestion.get('pvc_handler_url', 'https://')
+DISCRETE_RAW_ROOT_DIR = _endpoints_discrete_ingestion.get('discrete_raw_root_dir', '/tmp')
+DISCRETE_RAW_SRC_DIR = _endpoints_discrete_ingestion.get('discrete_raw_src_dir', 'ingestion/1')
+DISCRETE_RAW_DST_DIR = _endpoints_discrete_ingestion.get('discrete_raw_dst_dir', 'ingestion/2')
+NFS_RAW_ROOT_DIR = _endpoints_discrete_ingestion.get('nfs_raw_root_dir', '/tmp')
+NFS_RAW_SRC_DIR = _endpoints_discrete_ingestion.get('nfs_raw_src_dir', 'ingestion/1')
+NFS_RAW_DST_DIR = _endpoints_discrete_ingestion.get('nfs_raw_dst_dir', 'ingestion/2')
+PVC_UPDATE_ZOOM = _endpoints_discrete_ingestion.get('change_max_zoom_level', True)
+MAX_ZOOM_LEVEL = _endpoints_discrete_ingestion.get('max_zoom_level', 4)
+FAILURE_FLAG = _endpoints_discrete_ingestion.get('failure_tag', False)
+INGESTION_TIMEOUT = _endpoints_discrete_ingestion.get('ingestion_timeout', 300)
+BUFFER_TIMEOUT = _endpoints_discrete_ingestion.get('buffer_timeout', 70)
+
+# ============================================== PG Credential =========================================================
+_pg_credentials = conf.get('pg_credential')
+PG_ENDPOINT_URL = _pg_credentials.get('pg_endpoint_url', 'https://')
+PG_USER = _pg_credentials.get('pg_user', None)
+PG_PASS = _pg_credentials.get('pg_pass', None)
+PG_JOB_TASK_TABLE = _pg_credentials.get('pg_job_task_table', 'ingestion/1')
+PG_PYCSW_RECORD_TABLE = _pg_credentials.get('pg_pycsw_record_table', 'ingestion/2')
+PG_MAPPROXY_TABLE = _pg_credentials.get('pg_mapproxy_table', '/tmp')
+PG_AGENT_TABLE = _pg_credentials.get('pg_agent_table', 'ingestion/1')
+
+# ============================================== S3 Credential =========================================================
+_s3_credentials = conf.get('s3_credential')
+S3_ENDPOINT_URL = _s3_credentials.get('s3_endpoint_url', 'https://')
+S3_ACCESS_KEY = _s3_credentials.get('s3_access_key', None)
+S3_SECRET_KEY = _s3_credentials.get('s3_secret_key', None)
+S3_BUCKET_NAME = _s3_credentials.get('s3_bucket_name', 'UNKNOWN')
+
 
 # mapping of zoom level and related resolution values
 zoom_level_dict = {
