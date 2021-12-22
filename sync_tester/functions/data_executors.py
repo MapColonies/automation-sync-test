@@ -10,6 +10,7 @@ from mc_automation_tools import shape_convertor, common, s3storage
 from mc_automation_tools.ingestion_api import azure_pvc_api
 from discrete_kit.functions import metadata_convertor, shape_functions
 from discrete_kit.configuration import config as cfg
+
 _log = logging.getLogger('sync_tester.functions.data_executors')
 
 
@@ -67,7 +68,8 @@ class DataManager:
         resource_id = self._change_unique_sourceId()
         _log.info(f'Success change sourceId -> current new sourceId: [{resource_id}]')
         if config.PVC_UPDATE_ZOOM:
-            _log.info(f'Send request of changing max zoom level of discrete ingestion to -> max_zoom {config.MAX_ZOOM_LEVEL}')
+            _log.info(
+                f'Send request of changing max zoom level of discrete ingestion to -> max_zoom {config.MAX_ZOOM_LEVEL}')
             res = self._change_max_zoom_level()
             _log.info(f'Finish update zoom level: {res}')
         else:
@@ -149,7 +151,9 @@ class DataManager:
             return msg
 
         elif self.__env == config.EnvironmentTypes.PROD.name:
-            res = metadata_convertor.replace_discrete_resolution(self._dst_dir, str(config.zoom_level_dict[config.MAX_ZOOM_LEVEL]), 'tfw')
+            res = metadata_convertor.replace_discrete_resolution(self._dst_dir,
+                                                                 str(config.zoom_level_dict[config.MAX_ZOOM_LEVEL]),
+                                                                 'tfw')
             return res
 
         else:

@@ -1,4 +1,12 @@
+from sync_tester.configuration import config
+# from mc_automation_tools.postgres import agent_api
+from sync_tester.postgres import postgres_adapter
 
+pa = postgres_adapter.PostgresHandler(config.PG_ENDPOINT_URL)
+a = pa.get_mapproxy_config()
+a = pa.get_mapproxy_configs()
+
+print(a)
 parameters = {
     'resourceId': '2021_11_16T16_09_23Z_MAS_6_ORT_247557',
     'version': '4.0',
@@ -51,6 +59,7 @@ params_find = {
 
       "status": "Failed",
 }
+
 
 
 from sync_tester.configuration import config

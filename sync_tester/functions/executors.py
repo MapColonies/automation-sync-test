@@ -5,7 +5,9 @@ This module implement flow execution and multiple complex flow with main infrast
 import logging
 import os
 from sync_tester.configuration import config
+from sync_tester.nifi_sync_api import nifi_sync
 from sync_tester.functions import discrete_ingestion_executors, data_executors
+from sync_tester.postgres import postgres_adapter
 from mc_automation_tools import common
 from mc_automation_tools.ingestion_api import job_manager_api
 from conftest import ValueStorage
@@ -18,8 +20,11 @@ def run_ingestion():
     This is preprocess that will run and create new unique layer to process sync step over
     :return: dict -> {product_id:str, product_version:str}
     """
+    pg_handler = postgres_adapter.PostgresHandler(config.PG_ENDPOINT_URL)
+    initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
     ingestion_data = {}
-    _log.info('\n\n********************************* Start preparing for ingestion **************************************')
+    _log.info(
+        '\n\n********************************* Start preparing for ingestion **************************************')
     _log.info('Send request to stop agent watch')
     watch_status = discrete_ingestion_executors.stop_agent_watch()  # validate not agent not watching for ingestion
     if not watch_status['state']:
@@ -42,8 +47,8 @@ def run_ingestion():
               f'Source on dir: {res["ingestion_dir"]}\n'
               f'SourceId: {res["resource_name"]}\n'
               f'------------------------------------- End of ingestion data preparation ----------------------------------\n')
-    
-    # ============================================= Run ingestion ======================================================
+
+# =============================================== Run ingestion ========================================================
     _log.info('\n********************************* Start Discrete ingestion ***************************************** ')
     _log.info(f'Run data validation on source data')
     state, json_data = data_manager.validate_source_directory()
@@ -56,17 +61,44 @@ def run_ingestion():
     if not status == config.ResponseCode.Ok.value:
         raise Exception(f'Failed on sending manual ingestion with error: {status} and message: {content}')
     _log.info(f'Success sent new ingestion request on manual agent: [{status}]:[{content}]')
-    # ============================================ Follow ingestion ====================================================
+
+# ============================================== Follow ingestion ======================================================
     _log.info(f'Follow ingestion running job')
     job_tasks = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE)
     res = job_tasks.follow_running_job_manager(product_id=ingestion_data['product_id'],
                                                product_version=ingestion_data['product_version'],
-                                               product_type=config.JOB_MANAGER_TYPE['discrete_tiling'],
+                                               product_type=config.JobTypes.DISCRETE_TILING.value,
                                                timeout=config.INGESTION_TIMEOUT,
                                                internal_timeout=config.BUFFER_TIMEOUT)
-    _log.info(f'\n------------------------------ Discrete ingestion complete -------------------------------------------')
-    return {'state':True ,'product_id': ingestion_data['product_id'], 'product_version': ingestion_data['product_version']}
-    # ========================================= start sync from core A =================================================
+    _log.info(
+        f'\n------------------------------ Discrete ingestion complete -------------------------------------------')
+    cleanup_data = {
+        'product_id': ingestion_data['product_id'],
+        'product_version': ingestion_data['product_version'],
+        "mapproxy_last_id": initial_mapproxy_configs[0]['id'],
+        "mapproxy_length": len(initial_mapproxy_configs),
+        "folder_to_delete": os.path.join(config.DISCRETE_RAW_ROOT_DIR, config.DISCRETE_RAW_DST_DIR),
+        "tiles_folder_to_delete": "tiles",
+        "watch_status": False,
+        "volume_mode": "nfs"
+    }
+    if res['status'] == 'Completed':
+        ingestion_state = True
+        job_id = res['job_id']
+        msg = res['message']
+    else:
+        ingestion_state = False
+        job_id = None
+        msg = res['message']
+
+    return {'state': ingestion_state,
+            'product_id': ingestion_data['product_id'],
+            'product_version': ingestion_data['product_version'],
+            'cleanup_data': cleanup_data,
+            'job_id': job_id,
+            'message': msg}
+
+# =========================================== start sync from core A ===================================================
 
 
 def count_tiles_amount(product_id, product_version):
@@ -80,10 +112,119 @@ def count_tiles_amount(product_id, product_version):
     res = data_manager.count_tiles_on_storage(product_id, product_version)
     return res
 
+
 def trigger_orthphoto_history_sync(product_id, product_version):
     """
-
+    This method will trigger new sync job for OrthophotoHistory type
     :param product_id: str -> resource id of the layer to sync
     :param product_version: version of discrete
     :return:
     """
+    _log.info(
+        '\n\n******************************** Start Triggering Sync for ingestion *************************************')
+
+    sync_request_body = {
+        'resourceId': product_id,
+        'version': product_version,
+        'operation': config.SyncOperationType.ADD.value,
+        'productType': config.ProductType.orthophoto_history.value,
+        'layerRelativePath': os.path.join(product_id, product_version, config.ProductType.orthophoto_history.value)
+    }
+    resp = nifi_sync.send_sync_request(sync_request_body)
+    s_code = resp['status_code']
+    msg = resp['msg']['message']
+
+    if s_code == config.ResponseCode.Ok.value:
+        _log.info(f'Request sync success:\n'
+                  f'Status code: [{s_code}]\n'
+                  f'Message: [{msg}]')
+        state = True
+    else:
+        state = False
+        _log.error(f'Request sync was failed:\n'
+                   f'Status code: [{s_code}]\n'
+                   f'Message: [{msg}]')
+    # state = True if resp['status_code'] == config.ResponseCode.Ok.value else False
+    msg = f"status code: [{s_code}] | message: {msg}"
+
+    _log.info(
+        f'\n----------------------------------- Finish Triggering Sync -----------------------------------------------')
+    return {"state": state, "msg": msg}
+
+
+# ============================================ job manager controllers ============-====================================
+
+
+def validate_sync_job_creation(product_id, product_version, job_type):
+    """
+    This method query by job manager api and find if sync job is exists
+    :param product_id: str -> resource id of the layer to sync
+    :param product_version: version of discrete
+    :param job_type: str -> [SYNC_TRIGGER]
+    :return: dict -> {state: bool, message: str, records: list[dict]}
+    """
+    params = {
+        'resourceId': product_id,
+        'version': product_version,
+        'type': job_type
+        }
+
+    res = {
+        'state': True,
+        'message': 'OK',
+        'record': None}
+
+    _log.info(f' Will query for sync job with parameters:\n'
+              f'{params}')
+    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE)
+    try:
+        resp = job_manager_client.find_jobs_by_criteria(params)
+        if not len(resp):
+            res['state'] = False
+            res['message'] = 'No records found'
+            _log.info(f'Sync job not found current sync request: [{params}]')
+            return res
+
+        _log.info(f'Found {len(resp)} jobs for current sync request')
+        res['record'] = resp
+        return res
+
+    except Exception as e:
+        res['state'] = False
+        res['message'] = f'Failed find job with error: {str(e)}'
+        return res
+
+
+# ==================================================== cleanup =========================================================
+
+
+# todo -> need implantation and integration with automation cleanup package
+def clean_env(delete_request):
+    """
+    This method will cleanup running environment after test running
+    :param delete_request: json with params, example:
+        {
+          "product_id": "2021_12_14T13_10_45Z_MAS_6_ORT_247557",
+          "product_version": "4.0",
+          "mapproxy_last_id": 1,
+          "mapproxy_length": 1,
+          "folder_to_delete": "/tmp/mid_dir/watch",
+          "tiles_folder_to_delete": "adsa",
+          "watch_state": "False",
+          "volume_mode": "nfs"
+        }
+    :return: result dict
+    """
+    _log.debug(f'Current data parameters for deletion process:\n'
+               f'{delete_request}')
+
+    if config.ENV_NAME == config.EnvironmentTypes.QA.name or config.ENV_NAME == config.EnvironmentTypes.DEV.name:
+        print('will do cleanup for azure environment')
+        return {'status': 'Need to be updated'}
+
+    elif config.ENV_NAME == config.EnvironmentTypes.PROD.name:
+        print('will do cleanup for production environment')
+        return {'status': 'Need to be updated'}
+
+    else:
+        raise ValueError(f'Illegal environment value type: {config.ENV_NAME}')

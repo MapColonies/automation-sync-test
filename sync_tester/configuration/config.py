@@ -25,6 +25,14 @@ class ResponseCode(enum.Enum):
     ServerError = 500  # problem with error
 
 
+class JobTypes(enum.Enum):
+    """
+    Job manager types of job
+    """
+    DISCRETE_TILING = 'Discrete-Tiling'
+    SYNC_TRIGGER = 'SYNC_TRIGGER'
+
+
 class SyncOperationType(enum.Enum):
     """
     Types of sync operation
@@ -38,13 +46,14 @@ class ProductType(enum.Enum):
     """
     Types of products
     """
-    orthphoto = 'orthophoto'
-    orthophoto_history = 'orthophotoHistory'
+    orthphoto = 'Orthophoto'
+    orthophoto_history = 'OrthophotoHistory'
 
 
-JOB_MANAGER_TYPE = {
-    'discrete_tiling': 'Discrete-Tiling'
-}
+# JOB_MANAGER_TYPE = {
+#     'discrete_tiling': 'Discrete-Tiling',
+#     'sync-trigger': 'SYNC_TRIGGER'
+# }
 
 
 CONF_FILE = common.get_environment_variable('CONF_FILE', None)
@@ -69,7 +78,10 @@ TILES_RELATIVE_PATH = environment.get('tiles_relative_path', "tiles")
 # ================================================= api's routes =======================================================
 endpoints_routes = conf.get('api_routes')
 TRIGGER_NIFI_ROUTE = endpoints_routes.get('trigger_nifi', 'https://')
-SYNC_TRIGGER_API = endpoints_routes.get('sync_trigger_api', 'https://')
+NIFI_SYNC_TRIGGER_API = endpoints_routes.get('nifi_sync_trigger_api', '/synchronize/trigger')
+NIFI_SYNC_STATUS_API = endpoints_routes.get('nifi_sync_status_api', '/synchronize/status')
+NIFI_SYNC_FILE_RECIVED_API = endpoints_routes.get('nifi_sync_file_recived_api', '/synchronize/fileRecived')
+
 JOB_MANAGER_ROUTE = endpoints_routes.get('job_manager', 'https://')
 LAYER_SPEC_ROUTE = endpoints_routes.get('layer_spec', 'https://')
 
@@ -94,10 +106,10 @@ _pg_credentials = conf.get('pg_credential')
 PG_ENDPOINT_URL = _pg_credentials.get('pg_endpoint_url', 'https://')
 PG_USER = _pg_credentials.get('pg_user', None)
 PG_PASS = _pg_credentials.get('pg_pass', None)
-PG_JOB_TASK_TABLE = _pg_credentials.get('pg_job_task_table', 'ingestion/1')
-PG_PYCSW_RECORD_TABLE = _pg_credentials.get('pg_pycsw_record_table', 'ingestion/2')
-PG_MAPPROXY_TABLE = _pg_credentials.get('pg_mapproxy_table', '/tmp')
-PG_AGENT_TABLE = _pg_credentials.get('pg_agent_table', 'ingestion/1')
+PG_JOB_TASK_DB = _pg_credentials.get('pg_job_task_db', 'ingestion/1')
+PG_PYCSW_RECORD_DB = _pg_credentials.get('pg_pycsw_record_db', 'ingestion/2')
+PG_MAPPROXY_DB = _pg_credentials.get('pg_mapproxy_db', '/tmp')
+PG_AGENT_DB = _pg_credentials.get('pg_agent_db', 'ingestion/1')
 
 # ============================================== S3 Credential =========================================================
 _s3_credentials = conf.get('s3_credential')
@@ -134,10 +146,22 @@ zoom_level_dict = {
     22: 0.000000167638063430786
 }
 
-# todo
+
+cleanup_json = {
+  "product_id": "2021_12_14T13_10_45Z_MAS_6_ORT_247557",
+  "product_version": "4.0",
+  "mapproxy_last_id": 1,
+  "mapproxy_length": 1,
+  "folder_to_delete": "/tmp/danny_delete/watch",
+  "tiles_folder_to_delete": "adsa",
+  "watch_state": "False",
+  "volume_mode": "nfs"
+}
+
 """
 layer relative path
 if orthophoto :
     productid/product version
 else: productid/productversion/producttype
 """
+
