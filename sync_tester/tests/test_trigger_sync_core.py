@@ -4,14 +4,15 @@ This pytest module include e2e test of first part of core's synchronization -> t
 * GW
 """
 import logging
+import os
+from datetime import datetime
 
-from conftest import ValueStorage
+from conftest import *
 from sync_tester.configuration import config
 from sync_tester.functions import executors
 from sync_tester.functions import discrete_ingestion_executors
-
+is_logger_init = False
 _log = logging.getLogger('sync_tester.tests.test_trigger_sync_core')
-
 
 def test_trigger_to_gw():
     """This test validate core's process of trigger and send sync data out of core"""
@@ -39,16 +40,17 @@ def test_trigger_to_gw():
     tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version)
 
     # ======================================= trigger sync by nifi api =================================================
-    try:
-        resp = executors.trigger_orthphoto_history_sync(ingestion_product_id, ingestion_product_version)
-        trigger_sync_state, msg = resp['state'], resp['msg']
-    except Exception as e:
-        trigger_sync_state = False
-        msg = str(e)
+    if config.SYNC_FROM_A_MANUAL:
+        try:
+            resp = executors.trigger_orthphoto_history_sync(ingestion_product_id, ingestion_product_version)
+            trigger_sync_state, msg = resp['state'], resp['msg']
+        except Exception as e:
+            trigger_sync_state = False
+            msg = str(e)
 
-    assert trigger_sync_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Send start sync trigger stage\n' \
-                               f'related errors:\n' \
-                               f'{msg}'
+        assert trigger_sync_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Send start sync trigger stage\n' \
+                                   f'related errors:\n' \
+                                   f'{msg}'
 
     # ======================================== Sync job task creation ==================================================
 
@@ -63,8 +65,27 @@ def test_trigger_to_gw():
         msg = str(e)
 
     assert sync_job_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Query for new sync job\n' \
-                               f'related errors:\n' \
-                               f'{msg}'
+                           f'related errors:\n' \
+                           f'{msg}'
+
+    # ======================================== Sync job task follower ==================================================
+
+    sync_job = sync_job[-1]
+    sync_job_id = sync_job['id']
+    cleanup_data['sync_job_id'] = sync_job_id
+
+    try:
+        resp = executors.follow_sync_job(ingestion_product_id, ingestion_product_version, config.SYNC_TIMEOUT, config.BUFFER_TIMEOUT)
+        sync_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
+        msg = resp['message']
+    except Exception as e:
+        sync_follow_state = False
+        msg = str(e)
+    assert sync_follow_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Follow for sync job complete\n' \
+                           f'related errors:\n' \
+                           f'{msg}'
+
+
 
 def teardown_module(module):  # pylint: disable=unused-argument
     """
@@ -74,4 +95,55 @@ def teardown_module(module):  # pylint: disable=unused-argument
     res = executors.clean_env(ValueStorage.discrete_list)
 
 
-test_trigger_to_gw()
+def init_logger():
+    global is_logger_init
+    if is_logger_init:
+        return
+
+    else:
+        is_logger_init = True
+
+        log_mode = config.DEBUG_LOG  # Define if use debug+ mode logs -> default info+
+        file_log = config.LOG_TO_FILE  # Define if write std out into file
+        log_output_path = config.LOG_OUTPUT_PATH  # The directory to write log output
+
+        # init logger
+        logger = logging.getLogger()
+        if logger.hasHandlers():
+            logger.handlers.clear()
+        logger.setLevel(logging.DEBUG)
+
+        # define default handler to std out
+        ch = logging.StreamHandler()
+
+        # validate log level mode to define
+        if not log_mode:
+            ch.setLevel(logging.INFO)
+        else:
+            ch.setLevel(logging.DEBUG)
+
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        # defining another handler to file on case it is been requested
+        if file_log:
+            log_file_name = ".".join([str(datetime.utcnow()), 'log'])  # pylint: disable=invalid-name
+            fh = logging.FileHandler(os.path.join(log_output_path, log_file_name))
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
+
+        ch.setFormatter(formatter)
+        # add the handlers to the logger
+        logger.addHandler(ch)
+
+
+# todo -> on prod should run from setup pytest
+if config.DEBUG:
+    init_logger()
+    test_trigger_to_gw()
+
+
+
+
+_log.info('Loading tests suite for sync services')

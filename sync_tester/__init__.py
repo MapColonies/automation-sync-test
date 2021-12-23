@@ -40,4 +40,8 @@ ch.setFormatter(formatter)
 # add the handlers to the logger
 logger.addHandler(ch)
 
-_log.info('Loading tests suite for sync services')
+
+
+
+
+

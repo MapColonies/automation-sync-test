@@ -195,6 +195,40 @@ def validate_sync_job_creation(product_id, product_version, job_type):
         return res
 
 
+def follow_sync_job(product_id, product_version, running_timeout=300, internal_timeout=80):
+    """
+    This method will follow job and task of sync
+    :param product_id: layer's resource id
+    :param product_version: layer's version
+    :param running_timeout: timeout to abort following in case of sync deadlock
+    :param internal_timeout: internal timeout to prevent system crashes
+    :return: dict -> {state: bool, msg: str}
+    """
+    product_type = config.JobTypes.SYNC_TRIGGER.value
+    _log.info(
+        '\n\n************************************ Start Follow Sync job ***********************************************')
+    _log.debug(f'Parameters for follow sync job:\n'
+               f'Product ID: {product_id}\n'
+               f'Product version: {product_id}\n'
+               f'Product Type: {product_type}\n'
+               f'Follow timeout bounds: {running_timeout} sec\n'
+               f'Internal system delay {internal_timeout}')
+
+    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE)
+    res = job_manager_client.follow_running_job_manager(product_id=product_id,
+                                                        product_version=product_version,
+                                                        product_type=product_type,
+                                                        timeout=running_timeout,
+                                                        internal_timeout=internal_timeout)
+    _log.debug(f'Results from following sync job:\n'
+               f'State: {res["status"]}\n'
+               f'Message: {res["message"]}')
+    _log.info(
+        f'\n----------------------------------- Finish Follow Sync -----------------------------------------------')
+    return res
+
+
+
 # ==================================================== cleanup =========================================================
 
 

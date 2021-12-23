@@ -3,6 +3,15 @@ import json
 
 from mc_automation_tools import common
 
+class JobStatus(enum.Enum):
+    """
+    Types of job statuses
+    """
+    Completed = 'Completed'
+    Failed = 'Failed'
+    InProgress = 'In-Progress'
+    Pending = 'Pending'
+
 class EnvironmentTypes(enum.Enum):
     """
     Types of environment.
@@ -66,10 +75,14 @@ with open(CONF_FILE, 'r') as fp:
 
 # ========================================== environments configurations ===============================================
 environment = conf.get('environment')
+SYNC_FROM_A_MANUAL = environment.get('manual_sync', True)
+SYNC_TIMEOUT = environment.get('sync_timeout', 300)
 ENV_NAME = environment.get('name', 'QA')
 SYNC_TYPE = environment.get('sync_type', 'QA')
 DEBUG = environment.get('debug', True)
 DEBUG_LOG = environment.get('debug_log', True)
+LOG_TO_FILE = environment.get('log_to_file', True)
+LOG_OUTPUT_PATH = environment.get('log_output_path', '/tmp/auto-logs')
 STORAGE = environment.get('storage', "S3")
 STORAGE_ADAPTER = environment.get('storage_adapter', "PVC"),
 STORAGE_TILES = environment.get('storage_tiles', "S3")
