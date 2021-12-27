@@ -19,9 +19,9 @@ echo VERSION:$VERSION
 docker build --no-cache -t automation-sync-test:$VERSION --build-arg VERSION=$VERSION .
 #docker build -t automation-test:$VERSION --build-arg VERSION=$VERSION .
 
-docker tag automation-ingestion-test:$VERSION automation-sync-test:latest
+docker tag automation-sync-test:$VERSION automation-sync-test:latest
 
-echo automation-test:$VERSION > ./docker_images/generated_dockers.txt
+echo automation-sync-test:$VERSION > ./docker_images/generated_dockers.txt
 
 
 # path build.sh with "DUMP_IMAGE=1" to save docker

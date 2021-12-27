@@ -55,6 +55,8 @@ RUN useradd -ms /bin/bash user && usermod -a -G root user
 # adding os (ping) functionality for operation system testing
 # sets the user to run the application with: "app"
 USER user
+# message for user:
+RUN echo "please define before running environ: PYTEST_RUNNING_MODE=e2e|failures|functional"
 # cmd to run
 CMD "/source_code/start.sh"
 

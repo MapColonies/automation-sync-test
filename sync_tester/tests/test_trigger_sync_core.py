@@ -86,6 +86,12 @@ def test_trigger_to_gw():
                            f'{msg}'
 
 
+def setup_module(module):
+    """
+    base init of running tests
+    """
+    init_logger()
+
 
 def teardown_module(module):  # pylint: disable=unused-argument
     """
