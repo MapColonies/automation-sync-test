@@ -11,8 +11,10 @@ from conftest import *
 from sync_tester.configuration import config
 from sync_tester.functions import executors
 from sync_tester.functions import discrete_ingestion_executors
+
 is_logger_init = False
 _log = logging.getLogger('sync_tester.tests.test_trigger_sync_core')
+
 
 def test_trigger_to_gw():
     """This test validate core's process of trigger and send sync data out of core"""
@@ -55,7 +57,8 @@ def test_trigger_to_gw():
     # ======================================== Sync job task creation ==================================================
 
     try:
-        resp = executors.validate_sync_job_creation(ingestion_product_id, ingestion_product_version, config.JobTypes.SYNC_TRIGGER.value)
+        resp = executors.validate_sync_job_creation(ingestion_product_id, ingestion_product_version,
+                                                    config.JobTypes.SYNC_TRIGGER.value)
         msg = resp['message']
         sync_job_state = resp['state']
         sync_job = resp['record']
@@ -70,20 +73,39 @@ def test_trigger_to_gw():
 
     # ======================================== Sync job task follower ==================================================
 
-    sync_job = sync_job[-1]
+    sync_job = sync_job[0]
     sync_job_id = sync_job['id']
     cleanup_data['sync_job_id'] = sync_job_id
 
     try:
-        resp = executors.follow_sync_job(ingestion_product_id, ingestion_product_version, config.SYNC_TIMEOUT, config.BUFFER_TIMEOUT)
+        resp = executors.follow_sync_job(product_id=ingestion_product_id,
+                                         product_version=ingestion_product_version,
+                                         running_timeout=config.SYNC_TIMEOUT,
+                                         internal_timeout=config.BUFFER_TIMEOUT)
         sync_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
         msg = resp['message']
     except Exception as e:
         sync_follow_state = False
         msg = str(e)
     assert sync_follow_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Follow for sync job complete\n' \
-                           f'related errors:\n' \
-                           f'{msg}'
+                              f'related errors:\n' \
+                              f'{msg}'
+
+    # ====================================== Validate end of core A side ===============================================
+
+    try:
+        layer_id = "-".join([ingestion_product_id, ingestion_product_version])
+        target = "target2"
+        resp = executors.validate_layer_spec_tile_count(layer_id, target, tiles_count)
+        layer_spec_state = resp['state']
+        msg = resp['message']
+
+    except Exception as e:
+        layer_spec_state = False
+        msg = str(e)
+    assert layer_spec_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Validation of tiles count on layer spec\n' \
+                             f'related errors:\n' \
+                             f'{msg}'
 
 
 def setup_module(module):
@@ -148,8 +170,5 @@ def init_logger():
 if config.DEBUG:
     init_logger()
     test_trigger_to_gw()
-
-
-
 
 _log.info('Loading tests suite for sync services')

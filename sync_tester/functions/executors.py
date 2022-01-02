@@ -10,6 +10,7 @@ from sync_tester.functions import discrete_ingestion_executors, data_executors
 from sync_tester.postgres import postgres_adapter
 from mc_automation_tools import common
 from mc_automation_tools.ingestion_api import job_manager_api
+from mc_automation_tools.sync_api import layer_spec_api
 from conftest import ValueStorage
 
 _log = logging.getLogger('sync_tester.functions.executors')
@@ -48,7 +49,7 @@ def run_ingestion():
               f'SourceId: {res["resource_name"]}\n'
               f'------------------------------------- End of ingestion data preparation ----------------------------------\n')
 
-# =============================================== Run ingestion ========================================================
+    # =============================================== Run ingestion ========================================================
     _log.info('\n********************************* Start Discrete ingestion ***************************************** ')
     _log.info(f'Run data validation on source data')
     state, json_data = data_manager.validate_source_directory()
@@ -62,7 +63,7 @@ def run_ingestion():
         raise Exception(f'Failed on sending manual ingestion with error: {status} and message: {content}')
     _log.info(f'Success sent new ingestion request on manual agent: [{status}]:[{content}]')
 
-# ============================================== Follow ingestion ======================================================
+    # ============================================== Follow ingestion ======================================================
     _log.info(f'Follow ingestion running job')
     job_tasks = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE)
     res = job_tasks.follow_running_job_manager(product_id=ingestion_data['product_id'],
@@ -97,6 +98,7 @@ def run_ingestion():
             'cleanup_data': cleanup_data,
             'job_id': job_id,
             'message': msg}
+
 
 # =========================================== start sync from core A ===================================================
 
@@ -167,7 +169,7 @@ def validate_sync_job_creation(product_id, product_version, job_type):
         'resourceId': product_id,
         'version': product_version,
         'type': job_type
-        }
+    }
 
     res = {
         'state': True,
@@ -228,8 +230,39 @@ def follow_sync_job(product_id, product_version, running_timeout=300, internal_t
     return res
 
 
+# ============================================= core A validation ======================================================
 
-# ==================================================== cleanup =========================================================
+
+def validate_layer_spec_tile_count(layer_id, target, expected_tiles_count):
+    """
+    This method query layer spec api and receive tile count as written after core A sync process and compare with
+    expected value that provided.
+    :param layer_id: "product_id-product_version"
+    :param target: destination target
+    :param expected_tiles_count:
+    :return: dict -> {state:bool, msg:str}
+    """
+    try:
+        layer_spec = layer_spec_api.LayerSpec(config.LAYER_SPEC_ROUTE)
+        status_code, res = layer_spec.get_tiles_count(layer_id=layer_id,
+                                                      target=target)
+
+        if status_code != config.ResponseCode.Ok.value:
+            return {'state': False, 'message': f'Failed with error code: {status_code} and error message: [{res}]'}
+
+        else:
+            if res['tilesCount'] == expected_tiles_count:
+                return {'state': True, 'message': f'Layer spec include all tiles count as origin'}
+            else:
+                return {'state': False, 'message': f'Layer spec [{res["tilesCount"]}] not equal to origin [{expected_tiles_count}]'}
+
+    except Exception as e:
+        result = {'state': False, 'message': f'Failed layer spec validation with error: [{str(e)}]'}
+        return result
+
+
+
+# ================================================== cleanup ===========================================================
 
 
 # todo -> need implantation and integration with automation cleanup package

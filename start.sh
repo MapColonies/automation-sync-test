@@ -25,6 +25,11 @@ case $PYTEST_RUNNING_MODE in
     echo -ne " ***** Will Run functional tests *****\n"
     ;;
 
+  ingest_only)
+    echo -ne " ***** Will Run only ingestion *****\n"
+    pytest --show-capture=no /source_code/sync_tester/tests/test_run_only_ingestion.py
+    ;;
+
   *)
     echo -ne " ----- unknown tests mode params: [PYTEST_RUNNING_MODE=$PYTEST_RUNNING_MODE] ----- \n"
     ;;

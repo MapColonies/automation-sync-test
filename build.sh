@@ -16,7 +16,7 @@ IMAGE_FULL_NAME=automation-sync-test:$VERSION
 OUTPUT_DIR=/docker_images
 
 echo VERSION:$VERSION
-docker build --no-cache -t automation-sync-test:$VERSION --build-arg VERSION=$VERSION .
+docker build --no-cache --rm -t automation-sync-test:$VERSION --build-arg VERSION=$VERSION .
 #docker build -t automation-test:$VERSION --build-arg VERSION=$VERSION .
 
 docker tag automation-sync-test:$VERSION automation-sync-test:latest
