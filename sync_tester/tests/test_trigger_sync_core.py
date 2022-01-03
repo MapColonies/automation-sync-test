@@ -10,7 +10,6 @@ from datetime import datetime
 from conftest import *
 from sync_tester.configuration import config
 from sync_tester.functions import executors
-from sync_tester.functions import discrete_ingestion_executors
 
 is_logger_init = False
 _log = logging.getLogger('sync_tester.tests.test_trigger_sync_core')
