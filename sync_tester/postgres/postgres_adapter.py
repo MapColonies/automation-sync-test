@@ -9,16 +9,16 @@ _log = logging.getLogger('sync_tester.postgres.postgres_adapter')
 
 
 class PostgresHandler:
-    __job_task_db = config.PG_JOB_TASK_DB
-    __pycsw_records_db = config.PG_PYCSW_RECORD_DB
-    __mapproxy_config_db = config.PG_MAPPROXY_DB
-    __agent_db = config.PG_AGENT_DB
+    __job_task_db = config.PG_JOB_TASK_DB_CORE_A
+    __pycsw_records_db = config.PG_PYCSW_RECORD_DB_CORE_A
+    __mapproxy_config_db = config.PG_MAPPROXY_DB_CORE_A
+    __agent_db = config.PG_AGENT_DB_CORE_A
     __mapproxy_config_table = 'config'
 
     def __init__(self, end_point_url):
         self.__end_point_url = end_point_url
-        self.__user = config.PG_USER
-        self.__password = config.PG_PASS
+        self.__user = config.PG_USER_CORE_A
+        self.__password = config.PG_PASS_CORE_A
 
 
     @property
@@ -166,7 +166,7 @@ class PostgresHandler:
             return {'status': "Failed", 'message': f'Failed on deletion json-config: [{str(e)}]'}
 
 
-def delete_pycsw_record(product_id, value, db_name=config.PG_PYCSW_RECORD_DB, table_name='records'):
+def delete_pycsw_record(product_id, value, db_name=config.PG_PYCSW_RECORD_DB_CORE_A, table_name='records'):
     """
     This method will delete entire row on mapproxy
     :param product_id: id of layer as product_id
@@ -174,11 +174,11 @@ def delete_pycsw_record(product_id, value, db_name=config.PG_PYCSW_RECORD_DB, ta
     :param db_name: name of db
     :param table_name: name of table
     """
-    client = postgres.PGClass(config.PG_HOST, db_name, config.PG_USER, config.PG_PASS)
+    client = postgres.PGClass(config.PG_HOST, db_name, config.PG_USER_CORE_A, config.PG_PASS_CORE_A)
     res = client.delete_row_by_id(table_name, product_id, value)
 
 
-def delete_agent_path(layer_id, value, db_name=config.PG_AGENT_DB, table_name='layer_history'):
+def delete_agent_path(layer_id, value, db_name=config.PG_AGENT_DB_CORE_A, table_name='layer_history'):
     """
     This method will delete entire row on mapproxy
     :param layer_id: represent the later unique ID
@@ -186,5 +186,5 @@ def delete_agent_path(layer_id, value, db_name=config.PG_AGENT_DB, table_name='l
     :param db_name: name of db
     :param table_name: name of table
     """
-    client = postgres.PGClass(config.PG_HOST, db_name, config.PG_USER, config.PG_PASS)
+    client = postgres.PGClass(config.PG_HOST, db_name, config.PG_USER_CORE_A, config.PG_PASS_CORE_A)
     res = client.delete_row_by_id(table_name, layer_id, value)

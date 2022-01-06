@@ -7,7 +7,7 @@ lsa_client = lsa.LayerSpec(config.LAYER_SPEC_ROUTE)
 lsa_client.get_class_params
 lsa_client.get_tiles_count('2021_12_27T12_34_25Z_MAS_6_ORT_247557-4.0', 'target2')
 lsa_client.updates_tile_count('2021_12_27T12_34_25Z_MAS_6_ORT_247557-4.0', 'target2', {"tilesBatchCount": 5})
-pa = postgres_adapter.PostgresHandler(config.PG_ENDPOINT_URL)
+pa = postgres_adapter.PostgresHandler(config.PG_ENDPOINT_URL_CORE_A)
 a = pa.get_mapproxy_config()
 a = pa.get_mapproxy_configs()
 

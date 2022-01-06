@@ -80,7 +80,7 @@ def test_trigger_to_gw():
         resp = executors.follow_sync_job(product_id=ingestion_product_id,
                                          product_version=ingestion_product_version,
                                          running_timeout=config.SYNC_TIMEOUT,
-                                         internal_timeout=config.BUFFER_TIMEOUT)
+                                         internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
         sync_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
         msg = resp['message']
     except Exception as e:
@@ -94,7 +94,7 @@ def test_trigger_to_gw():
 
     try:
         layer_id = "-".join([ingestion_product_id, ingestion_product_version])
-        target = "target2"
+        target = config.CORE_TARGET
         resp = executors.validate_layer_spec_tile_count(layer_id, target, tiles_count)
         layer_spec_state = resp['state']
         msg = resp['message']
@@ -105,6 +105,21 @@ def test_trigger_to_gw():
     assert layer_spec_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Validation of tiles count on layer spec\n' \
                              f'related errors:\n' \
                              f'{msg}'
+
+    # ====================================== Validate end of core A side ===============================================
+
+    try:
+        resp = executors.validate_toc_task_creation(sync_job_id, tiles_count, config.JobTypes.TOC_SYNC.value)
+        toc_count_state = resp['state']
+        toc = resp['toc']
+        msg = resp['reason']
+    except Exception as e:
+        toc_count_state = False
+        msg = str(e)
+
+    assert toc_count_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Validation of tiles count on toc\n' \
+                            f'related errors:\n' \
+                            f'{msg}'
 
 
 def setup_module(module):

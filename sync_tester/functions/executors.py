@@ -21,7 +21,7 @@ def run_ingestion():
     This is preprocess that will run and create new unique layer to process sync step over
     :return: dict -> {product_id:str, product_version:str}
     """
-    pg_handler = postgres_adapter.PostgresHandler(config.PG_ENDPOINT_URL)
+    pg_handler = postgres_adapter.PostgresHandler(config.PG_ENDPOINT_URL_CORE_A)
     initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
     ingestion_data = {}
     _log.info(
@@ -35,8 +35,8 @@ def run_ingestion():
     _log.info(f'Start copy source discrete data to test destination replica data:\n'
               f'Running environment: {config.ENV_NAME}\n'
               f'Storage adapter: {config.STORAGE_ADAPTER}\n'
-              f'Source Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR, config.DISCRETE_RAW_SRC_DIR)}\n'
-              f'Destination Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR, config.DISCRETE_RAW_DST_DIR)}')
+              f'Source Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_SRC_DIR_CORE_A)}\n'
+              f'Destination Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_DST_DIR_CORE_A)}')
 
     # ======================================== Ingestion data prepare ==================================================
     data_manager = data_executors.DataManager(config.ENV_NAME, watch=False)
@@ -65,12 +65,12 @@ def run_ingestion():
 
     # ============================================== Follow ingestion ======================================================
     _log.info(f'Follow ingestion running job')
-    job_tasks = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE)
+    job_tasks = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
     res = job_tasks.follow_running_job_manager(product_id=ingestion_data['product_id'],
                                                product_version=ingestion_data['product_version'],
                                                product_type=config.JobTypes.DISCRETE_TILING.value,
-                                               timeout=config.INGESTION_TIMEOUT,
-                                               internal_timeout=config.BUFFER_TIMEOUT)
+                                               timeout=config.INGESTION_TIMEOUT_CORE_A,
+                                               internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
     _log.info(
         f'\n------------------------------ Discrete ingestion complete -------------------------------------------')
     cleanup_data = {
@@ -78,7 +78,7 @@ def run_ingestion():
         'product_version': ingestion_data['product_version'],
         "mapproxy_last_id": initial_mapproxy_configs[0]['id'],
         "mapproxy_length": len(initial_mapproxy_configs),
-        "folder_to_delete": os.path.join(config.DISCRETE_RAW_ROOT_DIR, config.DISCRETE_RAW_DST_DIR),
+        "folder_to_delete": os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_DST_DIR_CORE_A),
         "tiles_folder_to_delete": "tiles",
         "watch_status": False,
         "volume_mode": "nfs"
@@ -178,7 +178,7 @@ def validate_sync_job_creation(product_id, product_version, job_type):
 
     _log.info(f' Will query for sync job with parameters:\n'
               f'{params}')
-    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE)
+    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
     try:
         resp = job_manager_client.find_jobs_by_criteria(params)
         if not len(resp):
@@ -216,7 +216,7 @@ def follow_sync_job(product_id, product_version, running_timeout=300, internal_t
                f'Follow timeout bounds: {running_timeout} sec\n'
                f'Internal system delay {internal_timeout}')
 
-    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE)
+    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
     res = job_manager_client.follow_running_job_manager(product_id=product_id,
                                                         product_version=product_version,
                                                         product_type=product_type,
@@ -261,6 +261,33 @@ def validate_layer_spec_tile_count(layer_id, target, expected_tiles_count):
         return result
 
 
+def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTypes.TOC_SYNC.value):
+    """
+    The method validate core A toc task creation and validate num of tiles
+    :param job_id: id of related job for toc task
+    :param expected_tiles_count: original tile amount that was created on ingestion
+    :param toc_job_type: The type as represented for toc type task
+    :return: dict -> {'state': bool, 'reason': 'str, 'toc': dict}
+    """
+    param = {
+        "jobId": job_id,
+        "type": toc_job_type
+    }
+    result = {}
+    try:
+        job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
+        resp = job_manager_client.find_tasks(param)[0]
+        toc = resp['parameters']['tocData']
+        result['state'] = toc['tileCount'] == expected_tiles_count
+        result['reason'] = f'Expected tiles count: [{expected_tiles_count}] | actual from toc: [{toc["tileCount"]}]'
+        result['toc'] = toc
+    except Exception as e:
+        _log.error(f'failure on getting toc task: {str(e)}')
+        result['state'] = False
+        result['reason'] = str(e)
+        result['toc'] = None
+
+    return result
 
 # ================================================== cleanup ===========================================================
 

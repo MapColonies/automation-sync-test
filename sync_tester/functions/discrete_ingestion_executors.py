@@ -4,7 +4,7 @@ import json
 from sync_tester.configuration import config
 from mc_automation_tools.ingestion_api import agent_api
 _log = logging.getLogger('sync_tester.functions.discrete_ingestion_executors')
-agent_ins = agent_api.DiscreteAgentApi(config.DISCRETE_JOB_MANAGER_URL)
+agent_ins = agent_api.DiscreteAgentApi(config.DISCRETE_JOB_MANAGER_URL_CORE_A)
 
 # =============================================== Agent API's functions ================================================
 
@@ -76,9 +76,9 @@ def send_agent_manual_ingest(source_dir):
     :return: uuid [jobId]
     """
     if config.ENV_NAME == config.EnvironmentTypes.QA.name or config.ENV_NAME == config.EnvironmentTypes.DEV.name:
-        relative_path = source_dir.split(config.DISCRETE_RAW_ROOT_DIR)[1]
+        relative_path = source_dir.split(config.DISCRETE_RAW_ROOT_DIR_CORE_A)[1]
     elif config.ENV_NAME == config.EnvironmentTypes.PROD.name:
-        relative_path = config.NFS_RAW_DST_DIR
+        relative_path = config.NFS_RAW_DST_DIR_CORE_A
 
     resp = agent_ins.post_manual_trigger(relative_path)
     status_code = resp.status_code

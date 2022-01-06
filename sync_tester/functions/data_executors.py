@@ -25,7 +25,7 @@ class DataManager:
     def __init__(self, env, watch):
         self.__env = env
         self.__watch = watch
-        self.__pvc_handler = azure_pvc_api.PVCHandler(config.PVC_HANDLER_URL, self.__watch)
+        self.__pvc_handler = azure_pvc_api.PVCHandler(config.PVC_HANDLER_URL_CORE_A, self.__watch)
         self._dst_dir = None
         self._src_dir = None
 
@@ -40,8 +40,8 @@ class DataManager:
             res = self.init_ingestion_src_pvc()
             return res
         elif self.__env == config.EnvironmentTypes.PROD.name:
-            src = os.path.join(config.NFS_RAW_ROOT_DIR, config.NFS_RAW_SRC_DIR)
-            dst = os.path.join(config.NFS_RAW_ROOT_DIR, config.NFS_RAW_DST_DIR)
+            src = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_SRC_DIR_CORE_A)
+            dst = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_DST_DIR_CORE_A)
             try:
                 res = self.init_ingestion_src_fs(src, dst)
                 return res
@@ -67,9 +67,9 @@ class DataManager:
         _log.info(f'Send request of change sourceId to unique')
         resource_id = self._change_unique_sourceId()
         _log.info(f'Success change sourceId -> current new sourceId: [{resource_id}]')
-        if config.PVC_UPDATE_ZOOM:
+        if config.PVC_UPDATE_ZOOM_CORE_A:
             _log.info(
-                f'Send request of changing max zoom level of discrete ingestion to -> max_zoom {config.MAX_ZOOM_LEVEL}')
+                f'Send request of changing max zoom level of discrete ingestion to -> max_zoom {config.MAX_ZOOM_LEVEL_CORE_A}')
             res = self._change_max_zoom_level()
             _log.info(f'Finish update zoom level: {res}')
         else:
@@ -118,7 +118,7 @@ class DataManager:
         elif self.__env == config.EnvironmentTypes.PROD.name:
             try:
                 file = os.path.join(self._get_folder_path_by_name(self.__shape), self.__shape_metadata_file)
-                if config.FAILURE_FLAG:
+                if config.FAILURE_FLAG_CORE_A:
                     source_name = self.__update_shape_fs_to_failure(file)
                 else:
                     source_name = self.__update_shape_fs(file)
@@ -138,7 +138,7 @@ class DataManager:
         """
         if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
             try:
-                resp = self.__pvc_handler.change_max_zoom_tfw(config.MAX_ZOOM_LEVEL)
+                resp = self.__pvc_handler.change_max_zoom_tfw(config.MAX_ZOOM_LEVEL_CORE_A)
                 if resp.status_code == config.ResponseCode.Ok.value:
                     msg = json.loads(resp.text)["json_data"][0]["reason"]
                     _log.info(
@@ -152,7 +152,7 @@ class DataManager:
 
         elif self.__env == config.EnvironmentTypes.PROD.name:
             res = metadata_convertor.replace_discrete_resolution(self._dst_dir,
-                                                                 str(config.zoom_level_dict[config.MAX_ZOOM_LEVEL]),
+                                                                 str(config.zoom_level_dict[config.MAX_ZOOM_LEVEL_CORE_A]),
                                                                  'tfw')
             return res
 
@@ -199,8 +199,8 @@ class DataManager:
         self._dst_dir = dst
         source_name = self._change_unique_sourceId()
         _log.info(f'SourceId (productId + product version) changed to: [{source_name}]')
-        if config.PVC_UPDATE_ZOOM:
-            _log.info(f"Requested for Max zoom limit for ingestion -> [{config.MAX_ZOOM_LEVEL}]")
+        if config.PVC_UPDATE_ZOOM_CORE_A:
+            _log.info(f"Requested for Max zoom limit for ingestion -> [{config.MAX_ZOOM_LEVEL_CORE_A}]")
             zoom_level = self._change_max_zoom_level()
             if not zoom_level[0]['success']:
                 raise Exception(f'failed change zoom max level -> max resolution on tfw')
@@ -324,16 +324,16 @@ class DataManager:
         if config.STORAGE_TILES == "S3":
             _log.info(f'Collect total amount of tiles on S3 for layer: {product_id}-{product_version}\n'
                       f'For object_key: [{"/".join([product_id, product_version])}]')
-            s3_conn = s3storage.S3Client(config.S3_ENDPOINT_URL, config.S3_ACCESS_KEY, config.S3_SECRET_KEY)
+            s3_conn = s3storage.S3Client(config.S3_ENDPOINT_URL_CORE_A, config.S3_ACCESS_KEY_CORE_A, config.S3_SECRET_KEY_CORE_A)
             object_key = "/".join([product_id, product_version])
-            tiles_list = s3_conn.list_folder_content(config.S3_BUCKET_NAME, object_key)
+            tiles_list = s3_conn.list_folder_content(config.S3_BUCKET_NAME_CORE_A, object_key)
             _log.info(f'Total tiles count: [{len(tiles_list)}]')
             return len(tiles_list)
 
         elif config.STORAGE_TILES == "FS":
             _log.info(f'Collect total amount of tiles on FS for layer: {product_id}-{product_version}\n'
-                      f'For directory: [{os.path.join(config.NFS_RAW_ROOT_DIR, config.TILES_RELATIVE_PATH, product_id, product_version)}]')
-            tiles_dir = os.path.join(config.NFS_RAW_ROOT_DIR, config.TILES_RELATIVE_PATH, product_id, product_version)
+                      f'For directory: [{os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.TILES_RELATIVE_PATH, product_id, product_version)}]')
+            tiles_dir = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.TILES_RELATIVE_PATH, product_id, product_version)
             tiles_list = glob.glob(tiles_dir + f"/**/*.{tiles_format}", recursive=True)
             _log.info(f'Total tiles count: [{len(tiles_list)}]')
             return len(tiles_list)

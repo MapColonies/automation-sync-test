@@ -78,7 +78,7 @@ def test_trigger_to_gw():
     #     resp = executors.follow_sync_job(product_id=ingestion_product_id,
     #                                      product_version=ingestion_product_version,
     #                                      running_timeout=config.SYNC_TIMEOUT,
-    #                                      internal_timeout=config.BUFFER_TIMEOUT)
+    #                                      internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
     #     sync_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
     #     msg = resp['message']
     # except Exception as e:
