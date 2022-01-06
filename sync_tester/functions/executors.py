@@ -25,7 +25,7 @@ def run_ingestion():
     initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
     ingestion_data = {}
     _log.info(
-        '\n\n********************************* Start preparing for ingestion **************************************')
+        '\n\n*********************************** Start preparing for ingestion **************************************')
     _log.info('Send request to stop agent watch')
     watch_status = discrete_ingestion_executors.stop_agent_watch()  # validate not agent not watching for ingestion
     if not watch_status['state']:
@@ -47,10 +47,10 @@ def run_ingestion():
     _log.info(f'\nFinish prepare of ingestion data:\n'
               f'Source on dir: {res["ingestion_dir"]}\n'
               f'SourceId: {res["resource_name"]}\n'
-              f'------------------------------------- End of ingestion data preparation ----------------------------------\n')
+              f'----------------------------------- End of ingestion data preparation ---------------------------------\n')
 
     # =============================================== Run ingestion ========================================================
-    _log.info('\n********************************* Start Discrete ingestion ***************************************** ')
+    _log.info('\n************************************ Start Discrete ingestion *****************************************')
     _log.info(f'Run data validation on source data')
     state, json_data = data_manager.validate_source_directory()
     if not state:
@@ -72,7 +72,7 @@ def run_ingestion():
                                                timeout=config.INGESTION_TIMEOUT_CORE_A,
                                                internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
     _log.info(
-        f'\n------------------------------ Discrete ingestion complete -------------------------------------------')
+        f'\n------------------------------ Discrete ingestion complete -------------------------------------------\n')
     cleanup_data = {
         'product_id': ingestion_data['product_id'],
         'product_version': ingestion_data['product_version'],
@@ -243,7 +243,7 @@ def validate_layer_spec_tile_count(layer_id, target, expected_tiles_count):
     :return: dict -> {state:bool, msg:str}
     """
     try:
-        layer_spec = layer_spec_api.LayerSpec(config.LAYER_SPEC_ROUTE)
+        layer_spec = layer_spec_api.LayerSpec(config.LAYER_SPEC_ROUTE_CORE_A)
         status_code, res = layer_spec.get_tiles_count(layer_id=layer_id,
                                                       target=target)
 
@@ -273,6 +273,10 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
         "jobId": job_id,
         "type": toc_job_type
     }
+    _log.info(f'\n********************************* Start toc Sync validation ******************************************')
+    _log.info(f'\nPrepare validation of tile count on toc for:\n'
+              f'{param}\n'
+              f'Expected tiles: {expected_tiles_count}')
     result = {}
     try:
         job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
@@ -287,6 +291,11 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
         result['reason'] = str(e)
         result['toc'] = None
 
+    _log.info(f'\nValidation for toc complete with results:\n'
+              f'state: {result["state"]}\n'
+              f'message: {result["reason"]}\n')
+
+    _log.info(f'\n--------------------------------- Finish toc Sync validation -------------------------------------------')
     return result
 
 # ================================================== cleanup ===========================================================

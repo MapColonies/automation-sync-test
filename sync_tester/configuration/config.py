@@ -101,7 +101,7 @@ NIFI_SYNC_STATUS_API_CORE_A = endpoints_routes.get('nifi_sync_status_api', '/syn
 NIFI_SYNC_FILE_RECEIVED_API_CORE_A = endpoints_routes.get('nifi_sync_file_recived_api', '/synchronize/fileRecived')
 
 JOB_MANAGER_ROUTE_CORE_A = endpoints_routes.get('job_manager', 'https://')
-LAYER_SPEC_ROUTE = endpoints_routes.get('layer_spec', 'https://')
+LAYER_SPEC_ROUTE_CORE_A = endpoints_routes.get('layer_spec', 'https://')
 
 # ============================================= discrete ingestion =====================================================
 _endpoints_discrete_ingestion = conf_send_core.get('discrete_ingestion_credential')
@@ -135,6 +135,16 @@ S3_ENDPOINT_URL_CORE_A = _s3_credentials.get('s3_endpoint_url', 'https://')
 S3_ACCESS_KEY_CORE_A = _s3_credentials.get('s3_access_key', None)
 S3_SECRET_KEY_CORE_A = _s3_credentials.get('s3_secret_key', None)
 S3_BUCKET_NAME_CORE_A = _s3_credentials.get('s3_bucket_name', 'UNKNOWN')
+
+
+
+
+
+
+
+
+
+
 
 
 # mapping of zoom level and related resolution values
