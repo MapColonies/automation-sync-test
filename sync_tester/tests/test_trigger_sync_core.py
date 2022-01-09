@@ -56,8 +56,10 @@ def test_trigger_to_gw():
     # ======================================== Sync job task creation ==================================================
 
     try:
-        resp = executors.validate_sync_job_creation(ingestion_product_id, ingestion_product_version,
-                                                    config.JobTypes.SYNC_TRIGGER.value)
+        resp = executors.validate_sync_job_creation(ingestion_product_id,
+                                                    ingestion_product_version,
+                                                    config.JobTaskTypes.SYNC_TRIGGER.value,
+                                                    job_manager_url=config.JOB_MANAGER_ROUTE_CORE_A)
         msg = resp['message']
         sync_job_state = resp['state']
         sync_job = resp['record']
@@ -79,6 +81,8 @@ def test_trigger_to_gw():
     try:
         resp = executors.follow_sync_job(product_id=ingestion_product_id,
                                          product_version=ingestion_product_version,
+                                         product_type=config.JobTaskTypes.SYNC_TRIGGER.value,
+                                         job_manager_url=config.JOB_MANAGER_ROUTE_CORE_A,
                                          running_timeout=config.SYNC_TIMEOUT,
                                          internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
         sync_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
@@ -109,7 +113,7 @@ def test_trigger_to_gw():
     # ====================================== Validate end of core A side ===============================================
 
     try:
-        resp = executors.validate_toc_task_creation(sync_job_id, tiles_count, config.JobTypes.TOC_SYNC.value)
+        resp = executors.validate_toc_task_creation(sync_job_id, tiles_count, config.JobTaskTypes.TOC_SYNC.value)
         toc_count_state = resp['state']
         toc = resp['toc']
         msg = resp['reason']

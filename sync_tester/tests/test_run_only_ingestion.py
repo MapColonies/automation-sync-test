@@ -55,7 +55,7 @@ def test_trigger_to_gw():
     #
     # try:
     #     resp = executors.validate_sync_job_creation(ingestion_product_id, ingestion_product_version,
-    #                                                 config.JobTypes.SYNC_TRIGGER.value)
+    #                                                 config.JobTaskTypes.SYNC_TRIGGER.value)
     #     msg = resp['message']
     #     sync_job_state = resp['state']
     #     sync_job = resp['record']

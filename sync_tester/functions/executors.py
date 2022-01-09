@@ -68,7 +68,7 @@ def run_ingestion():
     job_tasks = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
     res = job_tasks.follow_running_job_manager(product_id=ingestion_data['product_id'],
                                                product_version=ingestion_data['product_version'],
-                                               product_type=config.JobTypes.DISCRETE_TILING.value,
+                                               product_type=config.JobTaskTypes.DISCRETE_TILING.value,
                                                timeout=config.INGESTION_TIMEOUT_CORE_A,
                                                internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
     _log.info(
@@ -103,14 +103,33 @@ def run_ingestion():
 # =========================================== start sync from core A ===================================================
 
 
-def count_tiles_amount(product_id, product_version):
+def count_tiles_amount(product_id, product_version, core):
     """
 
     :param product_id: str -> resource id of the layer to sync
     :param product_version: version of discrete
+    :param core: "A" [send] | "B" [received]
     :return: int -> total amount of tiles
     """
-    data_manager = data_executors.DataManager(config.ENV_NAME, watch=False)
+
+    if core.lower() == "b":
+        if config.TILES_PROVIDER_B:
+            s3_credential = config.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_B,
+                                              access_key=config.S3_ACCESS_KEY_CORE_B,
+                                              secret_key=config.S3_SECRET_KEY_CORE_B,
+                                              bucket_name=config.S3_BUCKET_NAME_CORE_B)
+        storage_provider = config.StorageProvider(tiles_provider=config.TILES_PROVIDER_B,
+                                                  s3_credential=s3_credential)
+    elif core.lower() == "a":
+        if config.TILES_PROVIDER_A:
+            s3_credential = config.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_A,
+                                              access_key=config.S3_ACCESS_KEY_CORE_A,
+                                              secret_key=config.S3_SECRET_KEY_CORE_A,
+                                              bucket_name=config.S3_BUCKET_NAME_CORE_A)
+        storage_provider = config.StorageProvider(tiles_provider=config.TILES_PROVIDER_A,
+                                                  s3_credential=s3_credential)
+
+    data_manager = data_executors.DataManager(config.ENV_NAME, watch=False, storage_provider=storage_provider)
     res = data_manager.count_tiles_on_storage(product_id, product_version)
     return res
 
@@ -157,12 +176,13 @@ def trigger_orthphoto_history_sync(product_id, product_version):
 # ============================================ job manager controllers ============-====================================
 
 
-def validate_sync_job_creation(product_id, product_version, job_type):
+def validate_sync_job_creation(product_id, product_version, job_type, job_manager_url):
     """
     This method query by job manager api and find if sync job is exists
     :param product_id: str -> resource id of the layer to sync
     :param product_version: version of discrete
     :param job_type: str -> [SYNC_TRIGGER]
+    :param job_manager_url: str -> url of job manager
     :return: dict -> {state: bool, message: str, records: list[dict]}
     """
     params = {
@@ -178,7 +198,7 @@ def validate_sync_job_creation(product_id, product_version, job_type):
 
     _log.info(f' Will query for sync job with parameters:\n'
               f'{params}')
-    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
+    job_manager_client = job_manager_api.JobsTasksManager(job_manager_url)
     try:
         resp = job_manager_client.find_jobs_by_criteria(params)
         if not len(resp):
@@ -197,16 +217,17 @@ def validate_sync_job_creation(product_id, product_version, job_type):
         return res
 
 
-def follow_sync_job(product_id, product_version, running_timeout=300, internal_timeout=80):
+def follow_sync_job(product_id, product_version, product_type, job_manager_url, running_timeout=300, internal_timeout=80):
     """
     This method will follow job and task of sync
     :param product_id: layer's resource id
     :param product_version: layer's version
+    :param product_type: job type
     :param running_timeout: timeout to abort following in case of sync deadlock
     :param internal_timeout: internal timeout to prevent system crashes
     :return: dict -> {state: bool, msg: str}
     """
-    product_type = config.JobTypes.SYNC_TRIGGER.value
+
     _log.info(
         '\n\n************************************ Start Follow Sync job ***********************************************')
     _log.debug(f'Parameters for follow sync job:\n'
@@ -216,7 +237,7 @@ def follow_sync_job(product_id, product_version, running_timeout=300, internal_t
                f'Follow timeout bounds: {running_timeout} sec\n'
                f'Internal system delay {internal_timeout}')
 
-    job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
+    job_manager_client = job_manager_api.JobsTasksManager(job_manager_url)
     res = job_manager_client.follow_running_job_manager(product_id=product_id,
                                                         product_version=product_version,
                                                         product_type=product_type,
@@ -261,7 +282,7 @@ def validate_layer_spec_tile_count(layer_id, target, expected_tiles_count):
         return result
 
 
-def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTypes.TOC_SYNC.value):
+def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTaskTypes.TOC_SYNC.value):
     """
     The method validate core A toc task creation and validate num of tiles
     :param job_id: id of related job for toc task

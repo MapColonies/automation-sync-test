@@ -22,9 +22,11 @@ class DataManager:
     __shape_metadata_file = 'ShapeMetadata.shp'
     __tif = 'tiff'
 
-    def __init__(self, env, watch):
+    def __init__(self, env, watch, storage_provider):
         self.__env = env
+        self.__tiles_provider = config.STORAGE_TILES
         self.__watch = watch
+        self.storage_provider = storage_provider
         self.__pvc_handler = azure_pvc_api.PVCHandler(config.PVC_HANDLER_URL_CORE_A, self.__watch)
         self._dst_dir = None
         self._src_dir = None
@@ -321,16 +323,17 @@ class DataManager:
         :param product_version: version of discrete
         :return: int -> number of
         """
-        if config.STORAGE_TILES == "S3":
+        if self.storage_provider.get_tiles_provider() == "S3":
+            s3_credential = self.storage_provider.get_s3_credential()
             _log.info(f'Collect total amount of tiles on S3 for layer: {product_id}-{product_version}\n'
                       f'For object_key: [{"/".join([product_id, product_version])}]')
-            s3_conn = s3storage.S3Client(config.S3_ENDPOINT_URL_CORE_A, config.S3_ACCESS_KEY_CORE_A, config.S3_SECRET_KEY_CORE_A)
+            s3_conn = s3storage.S3Client(s3_credential.get_entrypoint_url(), s3_credential.get_access_key(), s3_credential.get_secret_key())
             object_key = "/".join([product_id, product_version])
-            tiles_list = s3_conn.list_folder_content(config.S3_BUCKET_NAME_CORE_A, object_key)
+            tiles_list = s3_conn.list_folder_content(s3_credential.get_bucket_name(), object_key)
             _log.info(f'Total tiles count: [{len(tiles_list)}]')
             return len(tiles_list)
 
-        elif config.STORAGE_TILES == "FS":
+        elif self.__tiles_provider == "FS":
             _log.info(f'Collect total amount of tiles on FS for layer: {product_id}-{product_version}\n'
                       f'For directory: [{os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.TILES_RELATIVE_PATH, product_id, product_version)}]')
             tiles_dir = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.TILES_RELATIVE_PATH, product_id, product_version)
