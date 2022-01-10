@@ -9,27 +9,27 @@ _log = logging.getLogger('sync_tester.postgres.postgres_adapter')
 
 
 class PostgresHandler:
-    __job_task_db = config.PG_JOB_TASK_DB_CORE_A
-    __pycsw_records_db = config.PG_PYCSW_RECORD_DB_CORE_A
-    __mapproxy_config_db = config.PG_MAPPROXY_DB_CORE_A
-    __agent_db = config.PG_AGENT_DB_CORE_A
-    __mapproxy_config_table = 'config'
 
-    def __init__(self, end_point_url):
-        self.__end_point_url = end_point_url
-        self.__user = config.PG_USER_CORE_A
-        self.__password = config.PG_PASS_CORE_A
+    def __init__(self, pg_credential):
+        self.__end_point_url = pg_credential.pg_entrypoint_url
+        self.__user = pg_credential.pg_user
+        self.__password = pg_credential.pg_pass
+        self.__job_task_db = pg_credential.pg_job_task_db
+        self.__pycsw_records_db = pg_credential.pg_pycsw_record_db
+        self.__mapproxy_config_db = pg_credential.pg_mapproxy_db
+        self.__agent_db = pg_credential.pg_agent_db
+        self.__mapproxy_config_table = 'config'
 
 
     @property
     def get_class_params(self):
         params = {
-            'end_point_url': self.__end_point_url,
-            'job_task_db': self.__job_task_db,
-            'pycsw_records_db': self.__pycsw_records_db,
-            'mapproxy_config_db': self.__mapproxy_config_db,
-            'agent_db': self.__agent_db,
-            'mapproxy_config_table': self.__mapproxy_config_table
+            '__end_point_url': self.__end_point_url,
+            '__job_task_db': self.__job_task_db,
+            '__pycsw_records_db': self.__pycsw_records_db,
+            '__mapproxy_config_db': self.__mapproxy_config_db,
+            '__agent_db': self.__agent_db,
+            '__mapproxy_config_table': self.__mapproxy_config_table
         }
         return params
 
@@ -37,7 +37,7 @@ class PostgresHandler:
 
     def get_current_job_id(self, product_id, product_version):
         """
-        This query return the latest job id, based on creationTime on db, user provide product id and product version
+        This query return the latest job id, based on creationTime on db, __user provide product id and product version
         :param product_id: resource id
         :param product_version: layer version
         :return: str [job id[
@@ -71,7 +71,7 @@ class PostgresHandler:
 
     def clean_layer_history(self, job_id):
         """
-        This method will delete record of job on agent db -> in case user want ingest same layer again from watch dir
+        This method will delete record of job on agent db -> in case __user want ingest same layer again from watch dir
         :param job_id:id of relevant job
         :return:
         """

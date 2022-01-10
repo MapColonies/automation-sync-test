@@ -43,7 +43,7 @@ FROM python:3.6
 # setup workdir
 WORKDIR /source_code
 COPY --from=build /source_code .
-# add user: app and group app - application user
+# add __user: app and group app - application __user
 RUN chmod +x start.sh
 
 RUN useradd -ms /bin/bash user && usermod -a -G root user
@@ -53,9 +53,9 @@ RUN useradd -ms /bin/bash user && usermod -a -G root user
 # app permissions
 #RUN chmod +x start.sh && chown -R app:app /opt/output && chown -R app:app /opt/logs && chown -R app:app /opt/jira
 # adding os (ping) functionality for operation system testing
-# sets the user to run the application with: "app"
+# sets the __user to run the application with: "app"
 USER user
-# message for user:
+# message for __user:
 RUN echo "please define before running environ: PYTEST_RUNNING_MODE=e2e|failures|functional"
 # cmd to run
 CMD "/source_code/start.sh"

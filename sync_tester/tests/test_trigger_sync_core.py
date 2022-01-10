@@ -38,7 +38,7 @@ def test_trigger_to_gw():
                             f'related errors:\n' \
                             f'{msg}'
 
-    tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version)
+    tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version, core="a")
 
     # ======================================= trigger sync by nifi api =================================================
     if config.SYNC_FROM_A_MANUAL:

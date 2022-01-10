@@ -96,6 +96,8 @@ TILES_RELATIVE_PATH = environment.get('tiles_relative_path', "tiles")
 
 conf_send_core = conf.get('send_core')
 # ================================================= api's routes =======================================================
+SOURCE_DATA_PROVIDER_A = conf_send_core.get('source_data_provider', "NFS")
+TILES_PROVIDER_A = conf_send_core.get('tiles_provider', "S3")
 endpoints_routes_a = conf_send_core.get('api_routes')
 TRIGGER_NIFI_ROUTE_CORE_A = endpoints_routes_a.get('trigger_nifi', 'https://')
 NIFI_SYNC_TRIGGER_API_CORE_A = endpoints_routes_a.get('nifi_sync_trigger_api', '/synchronize/trigger')
@@ -116,6 +118,7 @@ NFS_RAW_ROOT_DIR_CORE_A = _endpoints_discrete_ingestion_a.get('nfs_raw_root_dir'
 NFS_RAW_SRC_DIR_CORE_A = _endpoints_discrete_ingestion_a.get('nfs_raw_src_dir', 'ingestion/1')
 NFS_RAW_DST_DIR_CORE_A = _endpoints_discrete_ingestion_a.get('nfs_raw_dst_dir', 'ingestion/2')
 PVC_UPDATE_ZOOM_CORE_A = _endpoints_discrete_ingestion_a.get('change_max_zoom_level', True)
+UPDATE_ZOOM_CORE_A = _endpoints_discrete_ingestion_a.get('change_max_zoom_level', True)
 MAX_ZOOM_LEVEL_CORE_A = _endpoints_discrete_ingestion_a.get('max_zoom_level', 4)
 FAILURE_FLAG_CORE_A = _endpoints_discrete_ingestion_a.get('failure_tag', False)
 INGESTION_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('ingestion_timeout', 300)
@@ -157,6 +160,7 @@ NIFI_SYNC_FILE_RECEIVED_API_CORE_B = endpoints_routes_b.get('nifi_sync_file_reci
 JOB_MANAGER_ROUTE_CORE_B = endpoints_routes_b.get('job_manager', 'https://')
 LAYER_SPEC_ROUTE_CORE_B = endpoints_routes_b.get('layer_spec', 'https://')
 
+UPDATE_ZOOM_CORE_B = _endpoints_discrete_ingestion_a.get('change_max_zoom_level', True)
 
 # ============================================== PG Credential =========================================================
 _pg_credentials_b = conf_receive_core.get('pg_credential_b')
@@ -222,22 +226,34 @@ else: productid/productversion/producttype
 """
 
 
+class PGProvider:
+    """This class provide PG credential """
+    def __init__(self, entrypoint_url, pg_user, pg_pass, pg_job_task_db, pg_pycsw_record_db, pg_mapproxy_db, pg_agent_db):
+        self.pg_entrypoint_url = str(entrypoint_url)
+        self.pg_user = str(pg_user)
+        self.pg_pass = str(pg_pass)
+        self.pg_job_task_db = str(pg_job_task_db)
+        self.pg_pycsw_record_db = str(pg_pycsw_record_db)
+        self.pg_mapproxy_db = str(pg_mapproxy_db)
+        self.pg_agent_db = str(pg_agent_db)
+
+
 class S3Provider:
     """This class provide s3 credential """
     def __init__(self, entrypoint_url, access_key, secret_key, bucket_name=None):
-        self.s3_entrypoint_url = entrypoint_url,
-        self.s3_access_key = access_key,
-        self.s3_secret_key = secret_key,
+        self.s3_entrypoint_url = entrypoint_url
+        self.s3_access_key = access_key
+        self.s3_secret_key = secret_key
         self.s3_bucket_name = bucket_name
 
     def get_entrypoint_url(self):
-        return self.s3_entrypoint_url[0]
+        return self.s3_entrypoint_url
 
     def get_access_key(self):
-        return self.s3_access_key[0]
+        return self.s3_access_key
 
     def get_secret_key(self):
-        return self.s3_secret_key[0]
+        return self.s3_secret_key
 
     def get_bucket_name(self):
         return self.s3_bucket_name
@@ -248,12 +264,13 @@ class StorageProvider:
     def __init__(self,
                  source_data_provider=None,
                  tiles_provider=None,
-                 s3_credential=None):
+                 s3_credential=None,
+                 pvc_handler_url=None):
 
         self.__source_data_provider = source_data_provider
         self.__tiles_provider = tiles_provider
         self.s3_credential = s3_credential
-
+        self.__pvc_handler_url = pvc_handler_url
 
     def get_source_data_provider(self):
         return self.__source_data_provider
@@ -263,6 +280,9 @@ class StorageProvider:
 
     def get_s3_credential(self):
         return self.s3_credential
+
+    def get_pvc_url(self):
+        return self.__pvc_handler_url
 
 
 

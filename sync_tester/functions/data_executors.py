@@ -22,12 +22,17 @@ class DataManager:
     __shape_metadata_file = 'ShapeMetadata.shp'
     __tif = 'tiff'
 
-    def __init__(self, env, watch, storage_provider):
-        self.__env = env
+    def __init__(self, watch, storage_provider, update_zoom=True, zoom_level_change=4):
+        # self.__env = env
         self.__tiles_provider = config.STORAGE_TILES
         self.__watch = watch
         self.storage_provider = storage_provider
-        self.__pvc_handler = azure_pvc_api.PVCHandler(config.PVC_HANDLER_URL_CORE_A, self.__watch)
+        if storage_provider.get_pvc_url():
+            self.__pvc_handler = azure_pvc_api.PVCHandler(storage_provider.get_pvc_url(), self.__watch)
+        else:
+            self.__pvc_handler = None
+        self.__update_zoom = update_zoom
+        self.__zoom_level_change = zoom_level_change
         self._dst_dir = None
         self._src_dir = None
 
@@ -38,10 +43,13 @@ class DataManager:
         The method will duplicate and rename metadata shape file to unique running name
         :return:dict with ingestion_dir and resource_name
         """
-        if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
+
+        # if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
+        if self.storage_provider.get_source_data_provider().lower() == "pv" or self.storage_provider.get_source_data_provider().lower() == "pvc":
             res = self.init_ingestion_src_pvc()
             return res
-        elif self.__env == config.EnvironmentTypes.PROD.name:
+        # elif self.__env == config.EnvironmentTypes.PROD.name:
+        elif self.storage_provider.get_source_data_provider().lower() == "nfs" or self.storage_provider.get_source_data_provider().lower() == "fs":
             src = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_SRC_DIR_CORE_A)
             dst = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_DST_DIR_CORE_A)
             try:
@@ -53,7 +61,7 @@ class DataManager:
                 raise Exception(f'Failed generating testing directory with error: {str(e1)}')
 
         else:
-            raise ValueError(f'Illegal environment value type: {self.__env}')
+            raise ValueError(f'Illegal storage provider value type: {self.storage_provider.get_source_data_provider()}')
 
     def init_ingestion_src_pvc(self):
         """
@@ -69,9 +77,9 @@ class DataManager:
         _log.info(f'Send request of change sourceId to unique')
         resource_id = self._change_unique_sourceId()
         _log.info(f'Success change sourceId -> current new sourceId: [{resource_id}]')
-        if config.PVC_UPDATE_ZOOM_CORE_A:
+        if self.__update_zoom:
             _log.info(
-                f'Send request of changing max zoom level of discrete ingestion to -> max_zoom {config.MAX_ZOOM_LEVEL_CORE_A}')
+                f'Send request of changing max zoom level of discrete ingestion to -> max_zoom {self.__zoom_level_change}')
             res = self._change_max_zoom_level()
             _log.info(f'Finish update zoom level: {res}')
         else:
@@ -103,7 +111,8 @@ class DataManager:
         This method will update and generate unique based time str -> sourceId (productId)
         :return: str -> new resourceId (productId)
         """
-        if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
+        # if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
+        if self.storage_provider.get_source_data_provider().lower() == "pv" or self.storage_provider.get_source_data_provider().lower() == "pvc":
             try:
                 resp = self.__pvc_handler.make_unique_shapedata()
                 if not resp.status_code == config.ResponseCode.ChangeOk.value:
@@ -117,7 +126,8 @@ class DataManager:
                 raise Exception(f'Failed access pvc on changing shape metadata: [{str(e)}]')
             return resource_name
 
-        elif self.__env == config.EnvironmentTypes.PROD.name:
+        elif self.storage_provider.get_source_data_provider().lower() == "nfs" or self.storage_provider.get_source_data_provider().lower() == "fs":
+        # elif self.__env == config.EnvironmentTypes.PROD.name:
             try:
                 file = os.path.join(self._get_folder_path_by_name(self.__shape), self.__shape_metadata_file)
                 if config.FAILURE_FLAG_CORE_A:
@@ -131,16 +141,18 @@ class DataManager:
                 raise e
             return source_name
         else:
-            raise ValueError(f'Illegal environment value type: {self.__env}')
+            raise ValueError(f'Illegal storage provider value type: {self.storage_provider.get_source_data_provider()}')
 
     def _change_max_zoom_level(self):
         """
         This will change max zoom level of ingestion -> by zoom level integer value in config
         :return: dict with results
         """
-        if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
+
+        if self.storage_provider.get_source_data_provider().lower() == "pv" or self.storage_provider.get_source_data_provider().lower() == "pvc":
+        # if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
             try:
-                resp = self.__pvc_handler.change_max_zoom_tfw(config.MAX_ZOOM_LEVEL_CORE_A)
+                resp = self.__pvc_handler.change_max_zoom_tfw(self.__zoom_level_change)
                 if resp.status_code == config.ResponseCode.Ok.value:
                     msg = json.loads(resp.text)["json_data"][0]["reason"]
                     _log.info(
@@ -152,14 +164,15 @@ class DataManager:
                 raise IOError(f'Failed updating zoom max level with error: [{str(e)}]')
             return msg
 
-        elif self.__env == config.EnvironmentTypes.PROD.name:
+        elif self.storage_provider.get_source_data_provider().lower() == "nfs" or self.storage_provider.get_source_data_provider().lower() == "fs":
+        # elif self.__env == config.EnvironmentTypes.PROD.name:
             res = metadata_convertor.replace_discrete_resolution(self._dst_dir,
-                                                                 str(config.zoom_level_dict[config.MAX_ZOOM_LEVEL_CORE_A]),
+                                                                 str(config.zoom_level_dict[self.__zoom_level_change]),
                                                                  'tfw')
             return res
 
         else:
-            raise ValueError(f'Illegal environment value type: {self.__env}')
+            raise ValueError(f'Illegal storage provider value type: {self.storage_provider.get_source_data_provider()}')
 
     def init_ingestion_src_fs(self, src, dst):
         """
@@ -201,8 +214,8 @@ class DataManager:
         self._dst_dir = dst
         source_name = self._change_unique_sourceId()
         _log.info(f'SourceId (productId + product version) changed to: [{source_name}]')
-        if config.PVC_UPDATE_ZOOM_CORE_A:
-            _log.info(f"Requested for Max zoom limit for ingestion -> [{config.MAX_ZOOM_LEVEL_CORE_A}]")
+        if self.__update_zoom:
+            _log.info(f"Requested for Max zoom limit for ingestion -> [{self.__zoom_level_change}]")
             zoom_level = self._change_max_zoom_level()
             if not zoom_level[0]['success']:
                 raise Exception(f'failed change zoom max level -> max resolution on tfw')
@@ -217,7 +230,8 @@ class DataManager:
         :param path: relative path of ingestion, None if working on azure - qa \ dev with pvc
         :return: True \ False + response json
         """
-        if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
+        if self.storage_provider.get_source_data_provider().lower() == "pv" or self.storage_provider.get_source_data_provider().lower() == "pvc":
+        # if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
             resp = self.__pvc_handler.validate_ingestion_directory()
             try:
                 content = json.loads(resp.text)
@@ -229,7 +243,8 @@ class DataManager:
             except Exception as e:
                 raise Exception(f'Failed on getting response with error: {resp.status_code}|{resp.text}')
 
-        elif self.__env == config.EnvironmentTypes.PROD.name:
+        # elif self.__env == config.EnvironmentTypes.PROD.name:
+        elif self.storage_provider.get_source_data_provider().lower() == "nfs" or self.storage_provider.get_source_data_provider().lower() == "fs":
             state, resp = self._validate_directory()
             content = resp.get('metadata')
             if content:
@@ -241,7 +256,7 @@ class DataManager:
             else:
                 return False, "Failed on tiff validation"
         else:
-            raise Exception(f'illegal Environment name: [{self.__env}]')
+            raise Exception(f'illegal storage provider name: [{self.storage_provider.get_source_data_provider()}]')
 
     def __update_shape_fs_to_failure(self, shp):
         resp = shape_convertor.add_ext_source_name(shp, 'duplication')

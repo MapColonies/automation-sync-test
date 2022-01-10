@@ -21,13 +21,29 @@ def run_ingestion():
     This is preprocess that will run and create new unique layer to process sync step over
     :return: dict -> {product_id:str, product_version:str}
     """
-    pg_handler = postgres_adapter.PostgresHandler(config.PG_ENDPOINT_URL_CORE_A)
+    pg_credential = config.PGProvider(config.PG_ENDPOINT_URL_CORE_A,
+                                      config.PG_USER_CORE_A,
+                                      config.PG_PASS_CORE_A,
+                                      config.PG_JOB_TASK_DB_CORE_A,
+                                      config.PG_PYCSW_RECORD_DB_CORE_A,
+                                      config.PG_MAPPROXY_DB_CORE_A,
+                                      config.PG_AGENT_DB_CORE_A)
+
+    pg_handler = postgres_adapter.PostgresHandler(pg_credential)
     initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
     ingestion_data = {}
     _log.info(
         '\n\n*********************************** Start preparing for ingestion **************************************')
+
     _log.info('Send request to stop agent watch')
-    watch_status = discrete_ingestion_executors.stop_agent_watch()  # validate not agent not watching for ingestion
+    if config.SOURCE_DATA_PROVIDER_A.lower() == "pv" or config.SOURCE_DATA_PROVIDER_A.lower() == "pvc":
+        discrete_raw_root_dir = config.DISCRETE_RAW_ROOT_DIR_CORE_A
+    elif config.SOURCE_DATA_PROVIDER_A.lower() == "nfs" or config.SOURCE_DATA_PROVIDER_A.lower() == "fs":
+        discrete_raw_root_dir = config.NFS_RAW_DST_DIR_CORE_A
+    discrete_agent_adapter = discrete_ingestion_executors.DiscreteAgentAdapter(entrypoint_url=config.DISCRETE_JOB_MANAGER_URL_CORE_A,
+                                                                               source_data_provider=config.SOURCE_DATA_PROVIDER_A,
+                                                                               discrete_raw_root_dir=discrete_raw_root_dir)
+    watch_status = discrete_agent_adapter.stop_agent_watch()  # validate not agent not watching for ingestion
     if not watch_status['state']:
         raise Exception('Failed on stop agent watch')
     _log.info(f'Stop agent watch: [message from service: {watch_status["reason"]}]')
@@ -39,7 +55,24 @@ def run_ingestion():
               f'Destination Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_DST_DIR_CORE_A)}')
 
     # ======================================== Ingestion data prepare ==================================================
-    data_manager = data_executors.DataManager(config.ENV_NAME, watch=False)
+    if config.TILES_PROVIDER_A.lower() == "s3":
+        s3_credential = config.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_A,
+                                          access_key=config.S3_ACCESS_KEY_CORE_A,
+                                          secret_key=config.S3_SECRET_KEY_CORE_A,
+                                          bucket_name=config.S3_BUCKET_NAME_CORE_A)
+    else:
+        s3_credential = None
+
+    storage_provider = config.StorageProvider(source_data_provider=config.SOURCE_DATA_PROVIDER_A,
+                                              tiles_provider=config.TILES_PROVIDER_A,
+                                              s3_credential=s3_credential,
+                                              pvc_handler_url=config.PVC_HANDLER_URL_CORE_A)
+
+    data_manager = data_executors.DataManager(watch=False,
+                                              storage_provider=storage_provider,
+                                              update_zoom=config.UPDATE_ZOOM_CORE_A,
+                                              zoom_level_change=config.MAX_ZOOM_LEVEL_CORE_A
+                                              )
     res = data_manager.init_ingestion_src()
     ingestion_data['product_id'], ingestion_data['product_version'] = res['resource_name'].split('-')
     ingestion_dir = res['ingestion_dir']
@@ -58,12 +91,13 @@ def run_ingestion():
         raise Exception(f'Validation of source data failed: status [{state}], with reason: [{json_data}]')
     _log.info(f'Validation of data passed')
     _log.info('Send manual ingestion request')
-    status, content = discrete_ingestion_executors.send_agent_manual_ingest(ingestion_dir)
+
+    status, content = discrete_agent_adapter.send_agent_manual_ingest(ingestion_dir)
     if not status == config.ResponseCode.Ok.value:
         raise Exception(f'Failed on sending manual ingestion with error: {status} and message: {content}')
     _log.info(f'Success sent new ingestion request on manual agent: [{status}]:[{content}]')
 
-    # ============================================== Follow ingestion ======================================================
+    # ============================================= Follow ingestion ===================================================
     _log.info(f'Follow ingestion running job')
     job_tasks = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
     res = job_tasks.follow_running_job_manager(product_id=ingestion_data['product_id'],
@@ -118,6 +152,8 @@ def count_tiles_amount(product_id, product_version, core):
                                               access_key=config.S3_ACCESS_KEY_CORE_B,
                                               secret_key=config.S3_SECRET_KEY_CORE_B,
                                               bucket_name=config.S3_BUCKET_NAME_CORE_B)
+        else:
+            s3_credential = None
         storage_provider = config.StorageProvider(tiles_provider=config.TILES_PROVIDER_B,
                                                   s3_credential=s3_credential)
     elif core.lower() == "a":
@@ -126,10 +162,13 @@ def count_tiles_amount(product_id, product_version, core):
                                               access_key=config.S3_ACCESS_KEY_CORE_A,
                                               secret_key=config.S3_SECRET_KEY_CORE_A,
                                               bucket_name=config.S3_BUCKET_NAME_CORE_A)
+        else:
+            s3_credential = None
+
         storage_provider = config.StorageProvider(tiles_provider=config.TILES_PROVIDER_A,
                                                   s3_credential=s3_credential)
 
-    data_manager = data_executors.DataManager(config.ENV_NAME, watch=False, storage_provider=storage_provider)
+    data_manager = data_executors.DataManager(watch=False, storage_provider=storage_provider)
     res = data_manager.count_tiles_on_storage(product_id, product_version)
     return res
 
