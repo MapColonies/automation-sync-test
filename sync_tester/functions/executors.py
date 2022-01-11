@@ -4,11 +4,14 @@ This module implement flow execution and multiple complex flow with main infrast
 
 import logging
 import os
+
+from discrete_kit.functions.shape_functions import ShapeToJSON
+
 from sync_tester.configuration import config
 from sync_tester.nifi_sync_api import nifi_sync
 from sync_tester.functions import discrete_ingestion_executors, data_executors
 from sync_tester.postgres import postgres_adapter
-from mc_automation_tools import common
+from mc_automation_tools.validators import pycsw_validator
 from mc_automation_tools.ingestion_api import job_manager_api
 from mc_automation_tools.sync_api import layer_spec_api
 from conftest import ValueStorage
@@ -355,8 +358,68 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
               f'state: {result["state"]}\n'
               f'message: {result["reason"]}\n')
 
-    _log.info(f'\n--------------------------------- Finish toc Sync validation -------------------------------------------')
+    _log.info(f'\n\n-------------------------------- Finish toc Sync validation -----------------------------------------')
     return result
+
+# ============================================== pycsw controllers =====================================================
+
+def get_records_by_layer(layer_id, layer_version, pycsw_url, query_params):
+    """
+
+    :param layer_id: id [str]
+    :param layer_version: version [str]
+    :param query_params: get params for csw [dict]:
+        {
+            "service": "CSW",
+            "version": "2.0.2",
+            "request": "GetRecords",
+            "typenames": "mc:MCRasterRecord",
+            "ElementSetName": "full",
+            "resultType": "results",
+            "outputSchema": "http://schema.mapcolonies.com/raster"
+        }
+    :return: dict -> record data
+    """
+    pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
+
+
+def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_params):
+    """
+    The method validate computability between metadata written to toc against the actual data on csw's records
+    :param metadata: source metadata provided as dict -> {metadata: {...}}
+    :param layer_id: id represent the layer [str]
+    :param layer_version: version of the layer [str]
+    :param pycsw_url: route to csw server
+    :param query_params:
+     ** example:
+                {
+                    'service': PYCSW_SERVICE, ["CSW"]
+                    'version': PYCSW_VERSION, ["2.0.2"]
+                    'request': PYCSW_REQUEST_GET_RECORDS, ["GetRecords"]
+                    'typenames': PYCSW_TYPE_NAMES, ["mc:MCRasterRecord"]
+                    'ElementSetName': PYCSW_ElEMENT_SET_NAME, ["full"]
+                    'outputFormat': PYCSW_OUTPUT_FORMAT, ["application/xml"]
+                    'resultType': PYCSW_RESULT_TYPE, ["results"]
+                    'outputSchema': PYCSW_OUTPUT_SCHEMA [None]
+                }
+
+    :return: result dict -> {'validation': bool, 'reason':{}}, pycsw_records -> dict, links -> dict
+    """
+    try:
+        _log.info(f'\n\n******************** Will run validation of toc metadata vs. pycsw record ************************')
+        pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
+        toc_json = {'metadata': ShapeToJSON().create_metadata_from_toc(metadata['metadata'])}
+        res_dict, pycsw_records, links = pycsw_conn.validate_pycsw(toc_json, layer_id, layer_version)
+    except Exception as e:
+        _log.error(f'Failed validation of pycsw with error: [{str(e)}]')
+        res_dict = {'validation': False, 'reason': str(e)}
+        pycsw_records = {}
+        links = {}
+
+    _log.info(f'\n----------------------- Finish validation of toc metadata vs. pycsw record --------------------------')
+
+    return res_dict, pycsw_records, links
+
 
 # ================================================== cleanup ===========================================================
 

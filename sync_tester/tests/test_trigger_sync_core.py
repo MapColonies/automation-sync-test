@@ -13,6 +13,7 @@ from sync_tester.functions import executors
 
 is_logger_init = False
 _log = logging.getLogger('sync_tester.tests.test_trigger_sync_core')
+_log.info('Loading tests suite for sync services')
 
 
 def test_trigger_to_gw():
@@ -113,6 +114,7 @@ def test_trigger_to_gw():
     # ====================================== Validate end of core A side ===============================================
 
     try:
+
         resp = executors.validate_toc_task_creation(sync_job_id, tiles_count, config.JobTaskTypes.TOC_SYNC.value)
         toc_count_state = resp['state']
         toc = resp['toc']
@@ -124,6 +126,24 @@ def test_trigger_to_gw():
     assert toc_count_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Validation of tiles count on toc\n' \
                             f'related errors:\n' \
                             f'{msg}'
+
+    _log.info(f'Validation of toc metadata - pycsw records metadata')
+
+    try:
+        validation_dict, pycsw_records, links = executors.validate_metadata_pycsw(toc,
+                                                                                  ingestion_product_id,
+                                                                                  ingestion_product_version,
+                                                                                  config.PYCSW_URL_A,
+                                                                                  config.PYCSW_GET_RASTER_RECORD_PARAMS_A)
+        pycsw_validation_state = validation_dict['validation']
+        msg = validation_dict['reason']
+    except Exception as e:
+        pycsw_validation_state = False
+        msg = str(e)
+
+    assert pycsw_validation_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Validation of toc with pycsw\n' \
+                                   f'related errors:\n' \
+                                   f'{msg}'
 
 
 def setup_module(module):
@@ -189,4 +209,4 @@ if config.DEBUG:
     init_logger()
     test_trigger_to_gw()
 
-_log.info('Loading tests suite for sync services')
+

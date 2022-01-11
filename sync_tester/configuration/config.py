@@ -103,7 +103,8 @@ TRIGGER_NIFI_ROUTE_CORE_A = endpoints_routes_a.get('trigger_nifi', 'https://')
 NIFI_SYNC_TRIGGER_API_CORE_A = endpoints_routes_a.get('nifi_sync_trigger_api', '/synchronize/trigger')
 NIFI_SYNC_STATUS_API_CORE_A = endpoints_routes_a.get('nifi_sync_status_api', '/synchronize/status')
 NIFI_SYNC_FILE_RECEIVED_API_CORE_A = endpoints_routes_a.get('nifi_sync_file_recived_api', '/synchronize/fileRecived')
-
+PYCSW_URL_A = endpoints_routes_a.get('pycsw_url', "UNKNOWN")
+PYCSW_GET_RASTER_RECORD_PARAMS_A = endpoints_routes_a.get('pycsw_get_raster_record_params', {})
 JOB_MANAGER_ROUTE_CORE_A = endpoints_routes_a.get('job_manager', 'https://')
 LAYER_SPEC_ROUTE_CORE_A = endpoints_routes_a.get('layer_spec', 'https://')
 
@@ -123,6 +124,7 @@ MAX_ZOOM_LEVEL_CORE_A = _endpoints_discrete_ingestion_a.get('max_zoom_level', 4)
 FAILURE_FLAG_CORE_A = _endpoints_discrete_ingestion_a.get('failure_tag', False)
 INGESTION_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('ingestion_timeout', 300)
 BUFFER_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('buffer_timeout', 70)
+
 
 # ============================================== PG Credential =========================================================
 _pg_credentials_a = conf_send_core.get('pg_credential')
@@ -160,6 +162,10 @@ NIFI_SYNC_FILE_RECEIVED_API_CORE_B = endpoints_routes_b.get('nifi_sync_file_reci
 JOB_MANAGER_ROUTE_CORE_B = endpoints_routes_b.get('job_manager', 'https://')
 LAYER_SPEC_ROUTE_CORE_B = endpoints_routes_b.get('layer_spec', 'https://')
 
+# ============================================= discrete ingestion =====================================================
+_endpoints_discrete_ingestion_b = conf_receive_core.get('discrete_ingestion_credential_b')
+PYCSW_URL_B = _endpoints_discrete_ingestion_b.get('pycsw_url', "UNKNOWN")
+PYCSW_GET_RASTER_RECORD_PARAMS_B = _endpoints_discrete_ingestion_b.get('pycsw_get_raster_record_params', {})
 UPDATE_ZOOM_CORE_B = _endpoints_discrete_ingestion_a.get('change_max_zoom_level', True)
 
 # ============================================== PG Credential =========================================================
