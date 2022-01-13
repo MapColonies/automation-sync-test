@@ -95,111 +95,31 @@ def test_receive_from_gw():
     assert pycsw_validation_state, f'Test: [{test_receive_from_gw.__name__}] Failed: Validation of toc with pycsw\n' \
                                    f'related errors:\n' \
                                    f'{msg}'
-    # def test_trigger_to_gw():
-    #     """This test validate core's process of trigger and send sync data out of core"""
-    #
-    #     # ======================== prepare data (step 1) -> ingestion some discrete to core ================================
-    #     _log.info(f'Start preprocess of sync A -> ingest of new discrete')
-    #     try:
-    #         ingest_res = executors.run_ingestion()
-    #         ingestion_state = ingest_res['state']
-    #         ingestion_product_id = ingest_res['product_id']
-    #         ingestion_product_version = ingest_res['product_version']
-    #         cleanup_data = ingest_res['cleanup_data']
-    #         ValueStorage.discrete_list.append(cleanup_data)
-    #         msg = ingest_res['message']
-    #         _log.info(f'Ingestion complete')
-    #     except Exception as e:
-    #         _log.error(f'Failed on running ingestion with error: [{str(e)}]')
-    #         ingestion_state = False
-    #         msg = str(e)
-    #
-    #     assert ingestion_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: New discrete failed\n' \
-    #                             f'related errors:\n' \
-    #                             f'{msg}'
-    #
-    #     tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version)
-    #
-    #     # ======================================= trigger sync by nifi api =================================================
-    #     if config.SYNC_FROM_A_MANUAL:
-    #         try:
-    #             resp = executors.trigger_orthphoto_history_sync(ingestion_product_id, ingestion_product_version)
-    #             trigger_sync_state, msg = resp['state'], resp['msg']
-    #         except Exception as e:
-    #             trigger_sync_state = False
-    #             msg = str(e)
-    #
-    #         assert trigger_sync_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Send start sync trigger stage\n' \
-    #                                    f'related errors:\n' \
-    #                                    f'{msg}'
-    #
-    #     # ======================================== Sync job task creation ==================================================
-    #
-    #     try:
-    #         resp = executors.validate_sync_job_creation(ingestion_product_id, ingestion_product_version,
-    #                                                     config.JobTaskTypes.SYNC_TRIGGER.value)
-    #         msg = resp['message']
-    #         sync_job_state = resp['state']
-    #         sync_job = resp['record']
-    #
-    #     except Exception as e:
-    #         sync_job_state = False
-    #         msg = str(e)
-    #
-    #     assert sync_job_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Query for new sync job\n' \
-    #                            f'related errors:\n' \
-    #                            f'{msg}'
-    #
-    #     # ======================================== Sync job task follower ==================================================
-    #
-    #     sync_job = sync_job[0]
-    #     sync_job_id = sync_job['id']
-    #     cleanup_data['sync_job_id'] = sync_job_id
-    #
-    #     try:
-    #         resp = executors.follow_sync_job(product_id=ingestion_product_id,
-    #                                          product_version=ingestion_product_version,
-    #                                          running_timeout=config.SYNC_TIMEOUT,
-    #                                          internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
-    #         sync_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
-    #         msg = resp['message']
-    #     except Exception as e:
-    #         sync_follow_state = False
-    #         msg = str(e)
-    #     assert sync_follow_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Follow for sync job complete\n' \
-    #                               f'related errors:\n' \
-    #                               f'{msg}'
-    #
-    #     # ====================================== Validate end of core A side ===============================================
-    #
-    #     try:
-    #         layer_id = "-".join([ingestion_product_id, ingestion_product_version])
-    #         target = config.CORE_TARGET
-    #         resp = executors.validate_layer_spec_tile_count(layer_id, target, tiles_count)
-    #         layer_spec_state = resp['state']
-    #         msg = resp['message']
-    #
-    #     except Exception as e:
-    #         layer_spec_state = False
-    #         msg = str(e)
-    #     assert layer_spec_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Validation of tiles count on layer spec\n' \
-    #                              f'related errors:\n' \
-    #                              f'{msg}'
-    #
-    #     # ====================================== Validate end of core A side ===============================================
-    #
-    #     try:
-    #         resp = executors.validate_toc_task_creation(sync_job_id, tiles_count, config.JobTaskTypes.TOC_SYNC.value)
-    #         toc_count_state = resp['state']
-    #         toc = resp['toc']
-    #         msg = resp['reason']
-    #     except Exception as e:
-    #         toc_count_state = False
-    #         msg = str(e)
-    #
-    #     assert toc_count_state, f'Test: [{test_trigger_to_gw.__name__}] Failed: Validation of tiles count on toc\n' \
-    #                             f'related errors:\n' \
-    #                             f'{msg}'
+
+    # ========================================== validate mapproxy layer================================================
+    try:
+        params = {'mapproxy_endpoint_url': config.MAPPROXY_ROUTE_CORE_B,
+                  'tiles_storage_provide': config.TILES_PROVIDER_B,
+                  'grid_origin': config.MAPPROXY_GRID_ORIGIN_B,
+                  'nfs_tiles_url': config.NFS_TILES_DIR_B}
+
+        if config.TILES_PROVIDER_B.lower() == "s3":
+            params['endpoint_url'] = config.S3_ENDPOINT_URL_CORE_B
+            params['access_key'] = config.S3_ACCESS_KEY_CORE_B
+            params['secret_key'] = config.S3_SECRET_KEY_CORE_B
+            params['bucket_name'] = config.S3_BUCKET_NAME_CORE_B
+
+        result = executors.validate_mapproxy_layer(pycsw_records, receive_product_id, receive_product_version, params)
+        mapproxy_validation_state = result['validation']
+        msg = result['reason']
+
+    except Exception as e:
+        mapproxy_validation_state = False
+        msg = str(e)
+
+    assert mapproxy_validation_state, f'Test: [{test_receive_from_gw.__name__}] Failed: Validation of mapproxy urls\n' \
+                                      f'related errors:\n' \
+                                      f'{msg}'
 
 
 def setup_module(module):

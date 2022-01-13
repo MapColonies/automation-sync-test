@@ -11,9 +11,10 @@ from sync_tester.configuration import config
 from sync_tester.nifi_sync_api import nifi_sync
 from sync_tester.functions import discrete_ingestion_executors, data_executors
 from sync_tester.postgres import postgres_adapter
-from mc_automation_tools.validators import pycsw_validator
+from mc_automation_tools.validators import pycsw_validator, mapproxy_validator
 from mc_automation_tools.ingestion_api import job_manager_api
 from mc_automation_tools.sync_api import layer_spec_api
+from mc_automation_tools.models import structs
 from conftest import ValueStorage
 
 _log = logging.getLogger('sync_tester.functions.executors')
@@ -108,6 +109,13 @@ def run_ingestion():
                                                product_type=config.JobTaskTypes.DISCRETE_TILING.value,
                                                timeout=config.INGESTION_TIMEOUT_CORE_A,
                                                internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
+
+    if sum(1 for task in res['tasks'] if task['attempts'] > 0):
+        _log.warning(f'Some of related tasks were found with "attempts" > 0')
+        _log.debug(f'Related Tasks with attempts > 0 are:\n')
+        for task in res['tasks']:
+            if task['attempts'] > 0:
+                _log.debug(f'Task ID: [{task["id"]}], No. Attempts: [{task["attempts"]}]')
     _log.info(
         f'\n------------------------------ Discrete ingestion complete -------------------------------------------\n')
     cleanup_data = {
@@ -265,6 +273,7 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
     :param product_id: layer's resource id
     :param product_version: layer's version
     :param product_type: job type
+    :param job_manager_url: route url for job manager api
     :param running_timeout: timeout to abort following in case of sync deadlock
     :param internal_timeout: internal timeout to prevent system crashes
     :return: dict -> {state: bool, msg: str}
@@ -288,6 +297,14 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
     _log.debug(f'Results from following sync job:\n'
                f'State: {res["status"]}\n'
                f'Message: {res["message"]}')
+
+    if sum(1 for task in res['tasks'] if task['attempts'] > 0):
+        _log.warning(f'Some of related tasks were found with "attempts" > 0')
+        _log.debug(f'Related Tasks with attempts > 0 are:\n')
+        for task in res['tasks']:
+            if task['attempts'] > 0:
+                _log.debug(f'Task ID: [{task["id"]}], No. Attempts: [{task["attempts"]}]')
+
     _log.info(
         f'\n----------------------------------- Finish Follow Sync -----------------------------------------------')
     return res
@@ -363,24 +380,25 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
 
 # ============================================== pycsw controllers =====================================================
 
-def get_records_by_layer(layer_id, layer_version, pycsw_url, query_params):
-    """
 
-    :param layer_id: id [str]
-    :param layer_version: version [str]
-    :param query_params: get params for csw [dict]:
-        {
-            "service": "CSW",
-            "version": "2.0.2",
-            "request": "GetRecords",
-            "typenames": "mc:MCRasterRecord",
-            "ElementSetName": "full",
-            "resultType": "results",
-            "outputSchema": "http://schema.mapcolonies.com/raster"
-        }
-    :return: dict -> record data
-    """
-    pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
+# def get_records_by_layer(layer_id, layer_version, pycsw_url, query_params):
+#     """
+#
+#     :param layer_id: id [str]
+#     :param layer_version: version [str]
+#     :param query_params: get params for csw [dict]:
+#         {
+#             "service": "CSW",
+#             "version": "2.0.2",
+#             "request": "GetRecords",
+#             "typenames": "mc:MCRasterRecord",
+#             "ElementSetName": "full",
+#             "resultType": "results",
+#             "outputSchema": "http://schema.mapcolonies.com/raster"
+#         }
+#     :return: dict -> record data
+#     """
+#     pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
 
 
 def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_params):
@@ -409,7 +427,11 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
         _log.info(f'\n\n******************** Will run validation of toc metadata vs. pycsw record ************************')
         pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
         toc_json = {'metadata': ShapeToJSON().create_metadata_from_toc(metadata['metadata'])}
-        res_dict, pycsw_records, links = pycsw_conn.validate_pycsw(toc_json, layer_id, layer_version)
+        results = pycsw_conn.validate_pycsw(toc_json, layer_id, layer_version)
+        res_dict = results['results']
+        pycsw_records = results['pycsw_record']
+        links = results['links']
+
     except Exception as e:
         _log.error(f'Failed validation of pycsw with error: [{str(e)}]')
         res_dict = {'validation': False, 'reason': str(e)}
@@ -420,7 +442,33 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
 
     return res_dict, pycsw_records, links
 
+# ============================================= mapproxy controllers ===================================================
 
+
+def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=None):
+    """
+    This method will ensure the url's provided on mapproxy from pycsw
+    :return: result dict -> {'validation': bool, 'reason':{}}, links -> dict
+    """
+    _log.info(f'\n\n******************** Will run validation of layer mapproxy vs. pycsw record ************************')
+
+    if params['tiles_storage_provide'].lower() == 's3':
+        s3_credential = structs.S3Provider(entrypoint_url=params['endpoint_url'],
+                                           access_key=params['access_key'],
+                                           secret_key=params['secret_key'],
+                                           bucket_name=params['bucket_name'])
+    else:
+        s3_credential = None
+    mapproxy_conn = mapproxy_validator.MapproxyHandler(entrypoint_url=params['mapproxy_endpoint_url'],
+                                                       tiles_storage_provide=params['tiles_storage_provide'],
+                                                       grid_origin=params['grid_origin'],
+                                                       s3_credential=s3_credential,
+                                                       nfs_tiles_url=params['nfs_tiles_url'])
+
+    res = mapproxy_conn.validate_layer_from_pycsw(pycsw_record, product_id, product_version)
+    return res
+
+    _log.info(f'\n----------------------- Finish validation of layer mapproxy vs. pycsw record --------------------------')
 # ================================================== cleanup ===========================================================
 
 

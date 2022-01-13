@@ -135,6 +135,7 @@ def test_trigger_to_gw():
                                                                                   ingestion_product_version,
                                                                                   config.PYCSW_URL_A,
                                                                                   config.PYCSW_GET_RASTER_RECORD_PARAMS_A)
+
         pycsw_validation_state = validation_dict['validation']
         msg = validation_dict['reason']
     except Exception as e:
@@ -208,5 +209,3 @@ def init_logger():
 if config.DEBUG:
     init_logger()
     test_trigger_to_gw()
-
-

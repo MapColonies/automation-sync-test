@@ -2,7 +2,7 @@ import enum
 import json
 
 from mc_automation_tools import common
-
+from mc_automation_tools.models import structs
 
 class JobStatus(enum.Enum):
     """
@@ -72,7 +72,6 @@ if not CONF_FILE:
 with open(CONF_FILE, 'r') as fp:
     conf = json.load(fp)
 
-
 # ========================================== environments configurations ===============================================
 environment = conf.get('environment')
 SYNC_FROM_A_MANUAL = environment.get('manual_sync', True)
@@ -88,7 +87,6 @@ STORAGE = environment.get('storage', "S3")
 STORAGE_ADAPTER = environment.get('storage_adapter', "PVC"),
 STORAGE_TILES = environment.get('storage_tiles', "S3")
 TILES_RELATIVE_PATH = environment.get('tiles_relative_path', "tiles")
-
 
 """
 # coreA [send core]
@@ -125,7 +123,6 @@ FAILURE_FLAG_CORE_A = _endpoints_discrete_ingestion_a.get('failure_tag', False)
 INGESTION_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('ingestion_timeout', 300)
 BUFFER_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('buffer_timeout', 70)
 
-
 # ============================================== PG Credential =========================================================
 _pg_credentials_a = conf_send_core.get('pg_credential')
 PG_ENDPOINT_URL_CORE_A = _pg_credentials_a.get('pg_endpoint_url', 'https://')
@@ -142,7 +139,6 @@ S3_ENDPOINT_URL_CORE_A = _s3_credentials_a.get('s3_endpoint_url', 'https://')
 S3_ACCESS_KEY_CORE_A = _s3_credentials_a.get('s3_access_key', None)
 S3_SECRET_KEY_CORE_A = _s3_credentials_a.get('s3_secret_key', None)
 S3_BUCKET_NAME_CORE_A = _s3_credentials_a.get('s3_bucket_name', 'UNKNOWN')
-
 
 """
 # coreB [receive core]
@@ -161,12 +157,15 @@ NIFI_SYNC_FILE_RECEIVED_API_CORE_B = endpoints_routes_b.get('nifi_sync_file_reci
 
 JOB_MANAGER_ROUTE_CORE_B = endpoints_routes_b.get('job_manager', 'https://')
 LAYER_SPEC_ROUTE_CORE_B = endpoints_routes_b.get('layer_spec', 'https://')
+MAPPROXY_ROUTE_CORE_B = endpoints_routes_b.get('mapproxy_url', 'https://')
 
 # ============================================= discrete ingestion =====================================================
 _endpoints_discrete_ingestion_b = conf_receive_core.get('discrete_ingestion_credential_b')
 PYCSW_URL_B = _endpoints_discrete_ingestion_b.get('pycsw_url', "UNKNOWN")
 PYCSW_GET_RASTER_RECORD_PARAMS_B = _endpoints_discrete_ingestion_b.get('pycsw_get_raster_record_params', {})
 UPDATE_ZOOM_CORE_B = _endpoints_discrete_ingestion_a.get('change_max_zoom_level', True)
+MAPPROXY_GRID_ORIGIN_B = _endpoints_discrete_ingestion_a.get('mapproxy_grid_origin', True)
+NFS_TILES_DIR_B = _endpoints_discrete_ingestion_a.get('nfs_tiles_dir', '/tmp')
 
 # ============================================== PG Credential =========================================================
 _pg_credentials_b = conf_receive_core.get('pg_credential_b')
@@ -212,16 +211,15 @@ zoom_level_dict = {
     22: 0.000000167638063430786
 }
 
-
 cleanup_json = {
-  "product_id": "2021_12_14T13_10_45Z_MAS_6_ORT_247557",
-  "product_version": "4.0",
-  "mapproxy_last_id": 1,
-  "mapproxy_length": 1,
-  "folder_to_delete": "/tmp/danny_delete/watch",
-  "tiles_folder_to_delete": "adsa",
-  "watch_state": "False",
-  "volume_mode": "nfs"
+    "product_id": "2021_12_14T13_10_45Z_MAS_6_ORT_247557",
+    "product_version": "4.0",
+    "mapproxy_last_id": 1,
+    "mapproxy_length": 1,
+    "folder_to_delete": "/tmp/danny_delete/watch",
+    "tiles_folder_to_delete": "adsa",
+    "watch_state": "False",
+    "volume_mode": "nfs"
 }
 
 """
@@ -234,7 +232,9 @@ else: productid/productversion/producttype
 
 class PGProvider:
     """This class provide PG credential """
-    def __init__(self, entrypoint_url, pg_user, pg_pass, pg_job_task_db, pg_pycsw_record_db, pg_mapproxy_db, pg_agent_db):
+
+    def __init__(self, entrypoint_url, pg_user, pg_pass, pg_job_task_db, pg_pycsw_record_db, pg_mapproxy_db,
+                 pg_agent_db):
         self.pg_entrypoint_url = str(entrypoint_url)
         self.pg_user = str(pg_user)
         self.pg_pass = str(pg_pass)
@@ -246,6 +246,7 @@ class PGProvider:
 
 class S3Provider:
     """This class provide s3 credential """
+
     def __init__(self, entrypoint_url, access_key, secret_key, bucket_name=None):
         self.s3_entrypoint_url = entrypoint_url
         self.s3_access_key = access_key
@@ -267,12 +268,12 @@ class S3Provider:
 
 class StorageProvider:
     """This class provide gathered access to core's storage credential """
+
     def __init__(self,
                  source_data_provider=None,
                  tiles_provider=None,
                  s3_credential=None,
                  pvc_handler_url=None):
-
         self.__source_data_provider = source_data_provider
         self.__tiles_provider = tiles_provider
         self.s3_credential = s3_credential
@@ -291,4 +292,14 @@ class StorageProvider:
         return self.__pvc_handler_url
 
 
+class MapproxyProvider:
+    """
+    Include all param for mapproxy validator
+    """
 
+    def __init__(self, entrypoint, tile_storage_provide, grid_origin="ul", s3_credential=None, nfs_tiles_url=None):
+        self.__entrypoint = entrypoint
+        self.__tile_storage_provide = tile_storage_provide
+        self.__grid_origin = grid_origin
+        self.__s3_credential = s3_credential
+        self.__nfs_tiles_url = nfs_tiles_url
