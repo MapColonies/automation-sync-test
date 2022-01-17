@@ -54,7 +54,7 @@ def run_ingestion():
     _log.info(f'Prepare source data of ingestion:')
     _log.info(f'Start copy source discrete data to test destination replica data:\n'
               f'Running environment: {config.ENV_NAME}\n'
-              f'Storage adapter: {config.STORAGE_ADAPTER}\n'
+              f'Storage adapter: {config.SOURCE_DATA_PROVIDER_A}\n'
               f'Source Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_SRC_DIR_CORE_A)}\n'
               f'Destination Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_DST_DIR_CORE_A)}')
 
@@ -313,33 +313,42 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
 # ============================================= core A validation ======================================================
 
 
-def validate_layer_spec_tile_count(layer_id, target, expected_tiles_count):
+def get_layer_spec_tile_count(layer_id, target, layer_spec_api):
     """
     This method query layer spec api and receive tile count as written after core A sync process and compare with
     expected value that provided.
     :param layer_id: "product_id-product_version"
     :param target: destination target
-    :param expected_tiles_count:
+    :param layer_spec_api:url for layer spec route
     :return: dict -> {state:bool, msg:str}
     """
+    _log.info(
+        '\n\n****************************** Get actual tile count on layer spec ***************************************')
     try:
-        layer_spec = layer_spec_api.LayerSpec(config.LAYER_SPEC_ROUTE_CORE_A)
+        layer_spec = layer_spec_api.LayerSpec(layer_spec_api)
         status_code, res = layer_spec.get_tiles_count(layer_id=layer_id,
                                                       target=target)
 
+        _log.info(f'Request tile count on layer spec\n'
+                  f'Status code: {status_code}\n'
+                  f'Tiles count: {res}\n')
         if status_code != config.ResponseCode.Ok.value:
-            return {'state': False, 'message': f'Failed with error code: {status_code} and error message: [{res}]'}
+            res = {'state': False, 'message': f'Failed with error code: {status_code} and error message: [{res}]'}
 
         else:
-            if res['tilesCount'] == expected_tiles_count:
-                return {'state': True, 'message': f'Layer spec include all tiles count as origin'}
+            result = res.get('tilesCount')
+            if result > 0:
+                res = {'state': True, 'message': f'Layer spec include tiles count value: {result}', 'tile_count': result}
             else:
-                return {'state': False, 'message': f'Layer spec [{res["tilesCount"]}] not equal to origin [{expected_tiles_count}]'}
+                res = {'state': False, 'message': f'Layer spec [{result}] are not > 0', 'tile_count': result}
 
     except Exception as e:
-        result = {'state': False, 'message': f'Failed layer spec validation with error: [{str(e)}]'}
-        return result
+        res = {'state': False, 'message': f'Failed layer spec validation with error: [{str(e)}]', 'tile_count': None}
 
+    _log.info(
+        f'\n----------------------------------- Finish layer spec tile count -------------------------------------------')
+
+    return res
 
 def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTaskTypes.TOC_SYNC.value):
     """

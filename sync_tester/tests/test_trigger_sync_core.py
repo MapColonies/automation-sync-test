@@ -39,7 +39,7 @@ def test_trigger_to_gw():
                             f'related errors:\n' \
                             f'{msg}'
 
-    tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version, core="a")
+    # tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version, core="a")
 
     # ======================================= trigger sync by nifi api =================================================
     if config.SYNC_FROM_A_MANUAL:
@@ -95,14 +95,15 @@ def test_trigger_to_gw():
                               f'related errors:\n' \
                               f'{msg}'
 
-    # ====================================== Validate end of core A side ===============================================
+    # ================================== Validate tile count creation on layer spec ====================================
 
     try:
         layer_id = "-".join([ingestion_product_id, ingestion_product_version])
         target = config.CORE_TARGET
-        resp = executors.validate_layer_spec_tile_count(layer_id, target, tiles_count)
+        resp = executors.get_layer_spec_tile_count(layer_id, target, config.LAYER_SPEC_ROUTE_CORE_A)
         layer_spec_state = resp['state']
         msg = resp['message']
+        tiles_count = resp['tile_count']
 
     except Exception as e:
         layer_spec_state = False

@@ -74,33 +74,31 @@ with open(CONF_FILE, 'r') as fp:
 
 # ========================================== environments configurations ===============================================
 environment = conf.get('environment')
-SYNC_FROM_A_MANUAL = environment.get('manual_sync', True)
+# SYNC_FROM_A_MANUAL = environment.get('manual_sync', True)
 SYNC_TIMEOUT = environment.get('sync_timeout', 300)
 CORE_TARGET = environment.get('core_target', "target2")
 ENV_NAME = environment.get('name', 'QA')
-SYNC_TYPE = environment.get('sync_type', 'QA')
 DEBUG = environment.get('debug', True)
 DEBUG_LOG = environment.get('debug_log', True)
 LOG_TO_FILE = environment.get('log_to_file', True)
 LOG_OUTPUT_PATH = environment.get('log_output_path', '/tmp/auto-logs')
-STORAGE = environment.get('storage', "S3")
-STORAGE_ADAPTER = environment.get('storage_adapter', "PVC"),
-STORAGE_TILES = environment.get('storage_tiles', "S3")
-TILES_RELATIVE_PATH = environment.get('tiles_relative_path', "tiles")
 
 """
 # coreA [send core]
 """
-
+# ==================================================== general =========================================================
 conf_send_core = conf.get('send_core')
-# ================================================= api's routes =======================================================
 SOURCE_DATA_PROVIDER_A = conf_send_core.get('source_data_provider', "NFS")
 TILES_PROVIDER_A = conf_send_core.get('tiles_provider', "S3")
+SYNC_FROM_A_MANUAL = conf_send_core.get('manuel_sync', False)
+# ================================================== nifi routes =======================================================
+nifi_a = conf_send_core.get('nifi_credentials_a')
+TRIGGER_NIFI_ROUTE_CORE_A = nifi_a.get('trigger_nifi', 'https://')
+NIFI_SYNC_TRIGGER_API_CORE_A = nifi_a.get('nifi_sync_trigger_api', '/synchronize/trigger')
+NIFI_SYNC_STATUS_API_CORE_A = nifi_a.get('nifi_sync_status_api', '/synchronize/status')
+NIFI_SYNC_FILE_RECEIVED_API_CORE_A = nifi_a.get('nifi_sync_file_recived_api', '/synchronize/fileRecived')
+# ================================================= api's routes =======================================================
 endpoints_routes_a = conf_send_core.get('api_routes')
-TRIGGER_NIFI_ROUTE_CORE_A = endpoints_routes_a.get('trigger_nifi', 'https://')
-NIFI_SYNC_TRIGGER_API_CORE_A = endpoints_routes_a.get('nifi_sync_trigger_api', '/synchronize/trigger')
-NIFI_SYNC_STATUS_API_CORE_A = endpoints_routes_a.get('nifi_sync_status_api', '/synchronize/status')
-NIFI_SYNC_FILE_RECEIVED_API_CORE_A = endpoints_routes_a.get('nifi_sync_file_recived_api', '/synchronize/fileRecived')
 PYCSW_URL_A = endpoints_routes_a.get('pycsw_url', "UNKNOWN")
 PYCSW_GET_RASTER_RECORD_PARAMS_A = endpoints_routes_a.get('pycsw_get_raster_record_params', {})
 JOB_MANAGER_ROUTE_CORE_A = endpoints_routes_a.get('job_manager', 'https://')
@@ -163,9 +161,10 @@ MAPPROXY_ROUTE_CORE_B = endpoints_routes_b.get('mapproxy_url', 'https://')
 _endpoints_discrete_ingestion_b = conf_receive_core.get('discrete_ingestion_credential_b')
 PYCSW_URL_B = _endpoints_discrete_ingestion_b.get('pycsw_url', "UNKNOWN")
 PYCSW_GET_RASTER_RECORD_PARAMS_B = _endpoints_discrete_ingestion_b.get('pycsw_get_raster_record_params', {})
-UPDATE_ZOOM_CORE_B = _endpoints_discrete_ingestion_a.get('change_max_zoom_level', True)
-MAPPROXY_GRID_ORIGIN_B = _endpoints_discrete_ingestion_a.get('mapproxy_grid_origin', True)
-NFS_TILES_DIR_B = _endpoints_discrete_ingestion_a.get('nfs_tiles_dir', '/tmp')
+UPDATE_ZOOM_CORE_B = _endpoints_discrete_ingestion_b.get('change_max_zoom_level', True)
+MAPPROXY_GRID_ORIGIN_B = _endpoints_discrete_ingestion_b.get('mapproxy_grid_origin', True)
+NFS_TILES_DIR_B = _endpoints_discrete_ingestion_b.get('nfs_tiles_dir', '/tmp')
+BUFFER_TIMEOUT_CORE_B = _endpoints_discrete_ingestion_b.get('buffer_timeout', 70)
 
 # ============================================== PG Credential =========================================================
 _pg_credentials_b = conf_receive_core.get('pg_credential_b')

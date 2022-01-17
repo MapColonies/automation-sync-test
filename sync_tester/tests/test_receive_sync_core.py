@@ -5,6 +5,7 @@ This pytest module include e2e test of second part of core's synchronization -> 
 """
 import logging
 import os
+import time
 from datetime import datetime
 
 from conftest import *
@@ -80,6 +81,7 @@ def test_receive_from_gw():
                                                        f'{msg}'
 
     # =========================================== validate pycsw record ================================================
+    time.sleep(config.BUFFER_TIMEOUT_CORE_B)
     try:
         validation_dict, pycsw_records, links = executors.validate_metadata_pycsw(sync_receive_job_metadata,
                                                                                   receive_product_id,
@@ -97,6 +99,7 @@ def test_receive_from_gw():
                                    f'{msg}'
 
     # ========================================== validate mapproxy layer================================================
+    time.sleep(config.BUFFER_TIMEOUT_CORE_B)
     try:
         params = {'mapproxy_endpoint_url': config.MAPPROXY_ROUTE_CORE_B,
                   'tiles_storage_provide': config.TILES_PROVIDER_B,

@@ -24,13 +24,13 @@ class DataManager:
 
     def __init__(self, watch, storage_provider, update_zoom=True, zoom_level_change=4):
         # self.__env = env
-        self.__tiles_provider = config.STORAGE_TILES
         self.__watch = watch
         self.storage_provider = storage_provider
         if storage_provider.get_pvc_url():
             self.__pvc_handler = azure_pvc_api.PVCHandler(storage_provider.get_pvc_url(), self.__watch)
         else:
             self.__pvc_handler = None
+        self.__tiles_provider = self.storage_provider.get_tiles_provider()
         self.__update_zoom = update_zoom
         self.__zoom_level_change = zoom_level_change
         self._dst_dir = None
