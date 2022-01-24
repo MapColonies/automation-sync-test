@@ -40,13 +40,11 @@ def run_ingestion():
         '\n\n*********************************** Start preparing for ingestion **************************************')
 
     _log.info('Send request to stop agent watch')
-    if config.SOURCE_DATA_PROVIDER_A.lower() == "pv" or config.SOURCE_DATA_PROVIDER_A.lower() == "pvc":
-        discrete_raw_root_dir = config.DISCRETE_RAW_ROOT_DIR_CORE_A
-    elif config.SOURCE_DATA_PROVIDER_A.lower() == "nfs" or config.SOURCE_DATA_PROVIDER_A.lower() == "fs":
-        discrete_raw_root_dir = config.NFS_RAW_DST_DIR_CORE_A
-    discrete_agent_adapter = discrete_ingestion_executors.DiscreteAgentAdapter(entrypoint_url=config.DISCRETE_JOB_MANAGER_URL_CORE_A,
-                                                                               source_data_provider=config.SOURCE_DATA_PROVIDER_A,
-                                                                               discrete_raw_root_dir=discrete_raw_root_dir)
+
+    discrete_agent_adapter = discrete_ingestion_executors.DiscreteAgentAdapter(
+        entrypoint_url=config.DISCRETE_JOB_MANAGER_URL_CORE_A,
+        source_data_provider=config.SOURCE_DATA_PROVIDER_A)
+
     watch_status = discrete_agent_adapter.stop_agent_watch()  # validate not agent not watching for ingestion
     if not watch_status['state']:
         raise Exception('Failed on stop agent watch')
@@ -59,18 +57,39 @@ def run_ingestion():
               f'Destination Dir [for NFS mode only]: {os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_DST_DIR_CORE_A)}')
 
     # ======================================== Ingestion data prepare ==================================================
+    if config.SOURCE_DATA_PROVIDER_A.lower() == "pv" or config.SOURCE_DATA_PROVIDER_A.lower() == "pvc":
+        fs_provider = structs.FSProvider(is_fs=False,
+                                         root_dir_path=config.DISCRETE_RAW_ROOT_DIR_CORE_A,
+                                         src_relative_path=config.DISCRETE_RAW_SRC_DIR_CORE_A,
+                                         dst_relative_path=config.DISCRETE_RAW_DST_DIR_CORE_A)
+    elif config.SOURCE_DATA_PROVIDER_A.lower() == "fs" or config.SOURCE_DATA_PROVIDER_A.lower() == "nfs":
+        fs_provider = structs.FSProvider(is_fs=True,
+                                         root_dir_path=config.NFS_RAW_ROOT_DIR_CORE_A,
+                                         src_relative_path=config.NFS_RAW_SRC_DIR_CORE_A,
+                                         dst_relative_path=config.NFS_RAW_DST_DIR_CORE_A)
+    else:
+        raise ValueError('[SOURCE_DATA_PROVIDER_A] environ not valid provided')
+
     if config.TILES_PROVIDER_A.lower() == "s3":
-        s3_credential = config.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_A,
-                                          access_key=config.S3_ACCESS_KEY_CORE_A,
-                                          secret_key=config.S3_SECRET_KEY_CORE_A,
-                                          bucket_name=config.S3_BUCKET_NAME_CORE_A)
+        # s3_credential = config.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_A,
+        #                                   access_key=config.S3_ACCESS_KEY_CORE_A,
+        #                                   secret_key=config.S3_SECRET_KEY_CORE_A,
+        #                                   bucket_name=config.S3_BUCKET_NAME_CORE_A)
+        s3_credential = structs.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_A,
+                                           access_key=config.S3_ACCESS_KEY_CORE_A,
+                                           secret_key=config.S3_BUCKET_NAME_CORE_A,
+                                           bucket_name=config.S3_BUCKET_NAME_CORE_A)
     else:
         s3_credential = None
-
-    storage_provider = config.StorageProvider(source_data_provider=config.SOURCE_DATA_PROVIDER_A,
-                                              tiles_provider=config.TILES_PROVIDER_A,
-                                              s3_credential=s3_credential,
-                                              pvc_handler_url=config.PVC_HANDLER_URL_CORE_A)
+    # storage_provider = config.StorageProvider(source_data_provider=config.SOURCE_DATA_PROVIDER_A,
+    #                                           tiles_provider=config.TILES_PROVIDER_A,
+    #                                           s3_credential=s3_credential,
+    #                                           pvc_handler_url=config.PVC_HANDLER_URL_CORE_A)
+    storage_provider = structs.StorageProvider(source_data_provider=config.SOURCE_DATA_PROVIDER_A,
+                                               tiles_provider=config.TILES_PROVIDER_A,
+                                               s3_credential=s3_credential,
+                                               pvc_handler_url=config.PVC_HANDLER_URL_CORE_A,
+                                               fs_provider=fs_provider)
 
     data_manager = data_executors.DataManager(watch=False,
                                               storage_provider=storage_provider,
@@ -79,7 +98,14 @@ def run_ingestion():
                                               )
     res = data_manager.init_ingestion_src()
     ingestion_data['product_id'], ingestion_data['product_version'] = res['resource_name'].split('-')
-    ingestion_dir = res['ingestion_dir']
+
+    # define relative path to ingestion
+    if config.SOURCE_DATA_PROVIDER_A.lower() == "pv" or config.SOURCE_DATA_PROVIDER_A.lower() == "pvc":
+        discrete_raw_root_dir = config.DISCRETE_RAW_ROOT_DIR_CORE_A
+    elif config.SOURCE_DATA_PROVIDER_A.lower() == "nfs" or config.SOURCE_DATA_PROVIDER_A.lower() == "fs":
+        discrete_raw_root_dir = config.NFS_RAW_ROOT_DIR_CORE_A
+    ingestion_dir = res['ingestion_dir'].split(discrete_raw_root_dir)[1]
+
     ValueStorage.discrete_list.append(ingestion_data)  # store running data for future cleanup
     _log.info(f'\nFinish prepare of ingestion data:\n'
               f'Source on dir: {res["ingestion_dir"]}\n'
@@ -87,7 +113,8 @@ def run_ingestion():
               f'----------------------------------- End of ingestion data preparation ---------------------------------\n')
 
     # =============================================== Run ingestion ========================================================
-    _log.info('\n************************************ Start Discrete ingestion *****************************************')
+    _log.info(
+        '\n************************************ Start Discrete ingestion *****************************************')
     _log.info(f'Run data validation on source data')
     state, json_data = data_manager.validate_source_directory()
     if not state:
@@ -267,7 +294,8 @@ def validate_sync_job_creation(product_id, product_version, job_type, job_manage
         return res
 
 
-def follow_sync_job(product_id, product_version, product_type, job_manager_url, running_timeout=300, internal_timeout=80):
+def follow_sync_job(product_id, product_version, product_type, job_manager_url, running_timeout=300,
+                    internal_timeout=80):
     """
     This method will follow job and task of sync
     :param product_id: layer's resource id
@@ -338,7 +366,8 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_api):
         else:
             result = res.get('tilesCount')
             if result > 0:
-                res = {'state': True, 'message': f'Layer spec include tiles count value: {result}', 'tile_count': result}
+                res = {'state': True, 'message': f'Layer spec include tiles count value: {result}',
+                       'tile_count': result}
             else:
                 res = {'state': False, 'message': f'Layer spec [{result}] are not > 0', 'tile_count': result}
 
@@ -349,6 +378,7 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_api):
         f'\n----------------------------------- Finish layer spec tile count -------------------------------------------')
 
     return res
+
 
 def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTaskTypes.TOC_SYNC.value):
     """
@@ -362,7 +392,8 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
         "jobId": job_id,
         "type": toc_job_type
     }
-    _log.info(f'\n********************************* Start toc Sync validation ******************************************')
+    _log.info(
+        f'\n********************************* Start toc Sync validation ******************************************')
     _log.info(f'\nPrepare validation of tile count on toc for:\n'
               f'{param}\n'
               f'Expected tiles: {expected_tiles_count}')
@@ -384,8 +415,10 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
               f'state: {result["state"]}\n'
               f'message: {result["reason"]}\n')
 
-    _log.info(f'\n\n-------------------------------- Finish toc Sync validation -----------------------------------------')
+    _log.info(
+        f'\n\n-------------------------------- Finish toc Sync validation -----------------------------------------')
     return result
+
 
 # ============================================== pycsw controllers =====================================================
 
@@ -433,7 +466,8 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
     :return: result dict -> {'validation': bool, 'reason':{}}, pycsw_records -> dict, links -> dict
     """
     try:
-        _log.info(f'\n\n******************** Will run validation of toc metadata vs. pycsw record ************************')
+        _log.info(
+            f'\n\n******************** Will run validation of toc metadata vs. pycsw record ************************')
         pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
         toc_json = {'metadata': ShapeToJSON().create_metadata_from_toc(metadata['metadata'])}
         results = pycsw_conn.validate_pycsw(toc_json, layer_id, layer_version)
@@ -447,9 +481,11 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
         pycsw_records = {}
         links = {}
 
-    _log.info(f'\n----------------------- Finish validation of toc metadata vs. pycsw record --------------------------')
+    _log.info(
+        f'\n----------------------- Finish validation of toc metadata vs. pycsw record --------------------------')
 
     return res_dict, pycsw_records, links
+
 
 # ============================================= mapproxy controllers ===================================================
 
@@ -459,7 +495,8 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     This method will ensure the url's provided on mapproxy from pycsw
     :return: result dict -> {'validation': bool, 'reason':{}}, links -> dict
     """
-    _log.info(f'\n\n******************** Will run validation of layer mapproxy vs. pycsw record ************************')
+    _log.info(
+        f'\n\n******************** Will run validation of layer mapproxy vs. pycsw record ************************')
 
     if params['tiles_storage_provide'].lower() == 's3':
         s3_credential = structs.S3Provider(entrypoint_url=params['endpoint_url'],
@@ -477,7 +514,10 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     res = mapproxy_conn.validate_layer_from_pycsw(pycsw_record, product_id, product_version)
     return res
 
-    _log.info(f'\n----------------------- Finish validation of layer mapproxy vs. pycsw record --------------------------')
+    _log.info(
+        f'\n----------------------- Finish validation of layer mapproxy vs. pycsw record --------------------------')
+
+
 # ================================================== cleanup ===========================================================
 
 

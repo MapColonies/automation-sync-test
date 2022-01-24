@@ -7,6 +7,7 @@ import os
 import logging
 from sync_tester.configuration import config
 from mc_automation_tools import shape_convertor, common, s3storage
+from mc_automation_tools.models import structs
 from mc_automation_tools.ingestion_api import azure_pvc_api
 from discrete_kit.functions import metadata_convertor, shape_functions
 from discrete_kit.configuration import config as cfg
@@ -23,7 +24,6 @@ class DataManager:
     __tif = 'tiff'
 
     def __init__(self, watch, storage_provider, update_zoom=True, zoom_level_change=4):
-        # self.__env = env
         self.__watch = watch
         self.storage_provider = storage_provider
         if storage_provider.get_pvc_url():
@@ -33,8 +33,10 @@ class DataManager:
         self.__tiles_provider = self.storage_provider.get_tiles_provider()
         self.__update_zoom = update_zoom
         self.__zoom_level_change = zoom_level_change
-        self._dst_dir = None
-        self._src_dir = None
+        self._is_fs = storage_provider.fs_provider().get_is_fs()
+        self._root_dir = storage_provider.fs_provider().get_root_dir_path()
+        self._src_dir = storage_provider.fs_provider().get_src_relative_path()
+        self._dst_dir = storage_provider.fs_provider().get_dst_relative_path()
 
     def init_ingestion_src(self):
         """
@@ -44,14 +46,15 @@ class DataManager:
         :return:dict with ingestion_dir and resource_name
         """
 
-        # if self.__env == config.EnvironmentTypes.QA.name or self.__env == config.EnvironmentTypes.DEV.name:
-        if self.storage_provider.get_source_data_provider().lower() == "pv" or self.storage_provider.get_source_data_provider().lower() == "pvc":
+        if not self._is_fs:
             res = self.init_ingestion_src_pvc()
             return res
-        # elif self.__env == config.EnvironmentTypes.PROD.name:
-        elif self.storage_provider.get_source_data_provider().lower() == "nfs" or self.storage_provider.get_source_data_provider().lower() == "fs":
-            src = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_SRC_DIR_CORE_A)
-            dst = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_DST_DIR_CORE_A)
+
+        elif self._is_fs:
+            # src = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_SRC_DIR_CORE_A)
+            # dst = os.path.join(config.NFS_RAW_ROOT_DIR_CORE_A, config.NFS_RAW_DST_DIR_CORE_A)
+            src = os.path.join(self._root_dir, self._src_dir)
+            dst = os.path.join(self._root_dir, self._dst_dir)
             try:
                 res = self.init_ingestion_src_fs(src, dst)
                 return res
@@ -59,9 +62,9 @@ class DataManager:
                 raise e
             except Exception as e1:
                 raise Exception(f'Failed generating testing directory with error: {str(e1)}')
-
-        else:
-            raise ValueError(f'Illegal storage provider value type: {self.storage_provider.get_source_data_provider()}')
+        #
+        # else:
+        #     raise ValueError(f'Illegal storage provider value type: {self.storage_provider.get_source_data_provider()}')
 
     def init_ingestion_src_pvc(self):
         """

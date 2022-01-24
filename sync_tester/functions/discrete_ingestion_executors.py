@@ -3,6 +3,7 @@ import logging
 import json
 from sync_tester.configuration import config
 from mc_automation_tools.ingestion_api import agent_api
+from mc_automation_tools import common
 _log = logging.getLogger('sync_tester.functions.discrete_ingestion_executors')
 # agent_ins = agent_api.DiscreteAgentApi(config.DISCRETE_JOB_MANAGER_URL_CORE_A)
 
@@ -10,10 +11,10 @@ _log = logging.getLogger('sync_tester.functions.discrete_ingestion_executors')
 
 
 class DiscreteAgentAdapter:
-    def __init__(self, entrypoint_url, source_data_provider="NFS", discrete_raw_root_dir=""):
+    def __init__(self, entrypoint_url, source_data_provider="NFS"):
         self.__entrypoint_url = entrypoint_url
         self.__source_data_provider = source_data_provider
-        self.__discrete_raw_root_dir = discrete_raw_root_dir
+        # self.__discrete_raw_root_dir = discrete_raw_root_dir
         self.__conn = agent_api.DiscreteAgentApi(self.__entrypoint_url)
 
     def get_watch_status(self):
@@ -80,19 +81,23 @@ class DiscreteAgentAdapter:
         :return: uuid [jobId]
         """
         # if config.ENV_NAME == config.EnvironmentTypes.QA.name or config.ENV_NAME == config.EnvironmentTypes.DEV.name:
-        if self.__source_data_provider.lower() == "pv" or self.__source_data_provider.lower() == "pvc":
-            relative_path = source_dir.split(self.__discrete_raw_root_dir)[1]
+        # if self.__source_data_provider.lower() == "pv" or self.__source_data_provider.lower() == "pvc":
+        #     relative_path = source_dir.split(self.__discrete_raw_root_dir)[1]
+        #
+        # # elif config.ENV_NAME == config.EnvironmentTypes.PROD.name:
+        # elif self.__source_data_provider.lower() == "nfs" or self.__source_data_provider.lower() == "fs":
+        #     relative_path = self.__discrete_raw_root_dir
+        #
+        # else:
+        #     raise ValueError(f"Wrong source data provider was given: [{self.__source_data_provider}]")
+        #
+        # resp = self.__conn.post_manual_trigger(relative_path)
+        # status_code = resp.status_code
+        # content = resp.text
+        # return status_code, content
 
-        # elif config.ENV_NAME == config.EnvironmentTypes.PROD.name:
-        elif self.__source_data_provider.lower() == "nfs" or self.__source_data_provider.lower() == "fs":
-            relative_path = self.__discrete_raw_root_dir
-
-        else:
-            raise ValueError(f"Wrong source data provider was given: [{self.__source_data_provider}]")
-
-        resp = self.__conn.post_manual_trigger(relative_path)
-        status_code = resp.status_code
-        content = resp.text
+        resp = self.__conn.post_manual_trigger(source_dir)
+        status_code, content = common.response_parser(resp)
         return status_code, content
 
 
