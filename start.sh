@@ -13,6 +13,11 @@ case $PYTEST_RUNNING_MODE in
     pytest --show-capture=no /source_code/sync_tester/tests/test_trigger_sync_core.py
     ;;
 
+  e2e_sender)
+    echo -ne " ***** Will Run End - To - End test ***** \n"
+    pytest --show-capture=no /source_code/sync_tester/tests/test_trigger_sync_core.py
+    ;;
+
   full)
     echo -ne " ***** Will Run full set of tests: e2e, failures, functional tests ***** \n"
     ;;
