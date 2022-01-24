@@ -14,7 +14,7 @@ case $PYTEST_RUNNING_MODE in
     ;;
 
   e2e_sender)
-    echo -ne " ***** Will Run End - To - End test ***** \n"
+    echo -dockene " ***** Will Run End - To - End test ***** \n"
     pytest --show-capture=no /source_code/sync_tester/tests/test_trigger_sync_core.py
     ;;
 
