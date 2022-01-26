@@ -4,6 +4,7 @@ import json
 from mc_automation_tools import common
 from mc_automation_tools.models import structs
 
+
 class JobStatus(enum.Enum):
     """
     Types of job statuses
@@ -106,7 +107,7 @@ LAYER_SPEC_ROUTE_CORE_A = endpoints_routes_a.get('layer_spec', 'https://')
 
 # ============================================= discrete ingestion =====================================================
 _endpoints_discrete_ingestion_a = conf_send_core.get('discrete_ingestion_credential')
-DISCRETE_JOB_MANAGER_URL_CORE_A = _endpoints_discrete_ingestion_a.get('agent_url', 'https://')
+DISCRETE_AGENT_CORE_A = _endpoints_discrete_ingestion_a.get('agent_url', 'https://')
 PVC_HANDLER_URL_CORE_A = _endpoints_discrete_ingestion_a.get('pvc_handler_url', 'https://')
 DISCRETE_RAW_ROOT_DIR_CORE_A = _endpoints_discrete_ingestion_a.get('discrete_raw_root_dir', '/tmp')
 DISCRETE_RAW_SRC_DIR_CORE_A = _endpoints_discrete_ingestion_a.get('discrete_raw_src_dir', 'ingestion/1')
@@ -124,6 +125,7 @@ BUFFER_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('buffer_timeout', 70
 # ============================================== PG Credential =========================================================
 _pg_credentials_a = conf_send_core.get('pg_credential')
 PG_ENDPOINT_URL_CORE_A = _pg_credentials_a.get('pg_endpoint_url', 'https://')
+PG_PORT_A = _pg_credentials_a.get('pg_port', 5432)
 PG_USER_CORE_A = _pg_credentials_a.get('pg_user', None)
 PG_PASS_CORE_A = _pg_credentials_a.get('pg_pass', None)
 PG_JOB_TASK_DB_CORE_A = _pg_credentials_a.get('pg_job_task_db', 'ingestion/1')
@@ -221,6 +223,37 @@ cleanup_json = {
     "volume_mode": "nfs"
 }
 
+running_info = {
+    "type": "sender",
+    "date": "zulu time",
+    "watch_state": False,
+    "db": {
+        "job_tasks": "job_task_db",
+        "mapproxy_config": "mapproxy_db",
+        "layer_spec": "layer_spec_db",
+        "catalog": "catalog_db",
+        "endpoint_url": "http",
+        "user": "dsds",
+        "password": "fdsfds"
+    },
+    "raw_data_source": {
+        "provider": "FS",
+        "full_path": "/tmp/ingestion"
+    },
+    "tiles_data": {
+        "provider": "S3",
+        "full_path": "/tiles",
+        "s3_endpoint_url": None,
+        "s3_user": None,
+        "s3_pass": None,
+        "s3_bucket": None
+    },
+    "layer": {
+        "product_id": "fsdfsf",
+        "product_version": "rewrewr"
+    }
+}
+
 """
 layer relative path
 if orthophoto :
@@ -233,8 +266,9 @@ class PGProvider:
     """This class provide PG credential """
 
     def __init__(self, entrypoint_url, pg_user, pg_pass, pg_job_task_db, pg_pycsw_record_db, pg_mapproxy_db,
-                 pg_agent_db):
+                 pg_agent_db, port=5432):
         self.pg_entrypoint_url = str(entrypoint_url)
+        self.pg_port = port
         self.pg_user = str(pg_user)
         self.pg_pass = str(pg_pass)
         self.pg_job_task_db = str(pg_job_task_db)

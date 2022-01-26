@@ -116,7 +116,10 @@ def test_trigger_to_gw():
 
     try:
 
-        resp = executors.validate_toc_task_creation(sync_job_id, tiles_count, config.JobTaskTypes.TOC_SYNC.value)
+        resp = executors.validate_toc_task_creation(job_id=sync_job_id,
+                                                    expected_tiles_count=tiles_count,
+                                                    toc_job_type=config.JobTaskTypes.TOC_SYNC.value,
+                                                    job_manager_endpoint_url=config.JOB_MANAGER_ROUTE_CORE_A)
         toc_count_state = resp['state']
         toc = resp['toc']
         msg = resp['reason']

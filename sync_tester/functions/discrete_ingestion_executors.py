@@ -5,7 +5,6 @@ from sync_tester.configuration import config
 from mc_automation_tools.ingestion_api import agent_api
 from mc_automation_tools import common
 _log = logging.getLogger('sync_tester.functions.discrete_ingestion_executors')
-# agent_ins = agent_api.DiscreteAgentApi(config.DISCRETE_JOB_MANAGER_URL_CORE_A)
 
 # =============================================== Agent API's functions ================================================
 

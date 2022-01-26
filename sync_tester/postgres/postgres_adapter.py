@@ -12,6 +12,7 @@ class PostgresHandler:
 
     def __init__(self, pg_credential):
         self.__end_point_url = pg_credential.pg_entrypoint_url
+        self.__port = pg_credential.pg_port
         self.__user = pg_credential.pg_user
         self.__password = pg_credential.pg_pass
         self.__job_task_db = pg_credential.pg_job_task_db
@@ -25,6 +26,7 @@ class PostgresHandler:
     def get_class_params(self):
         params = {
             '__end_point_url': self.__end_point_url,
+            '__port': self.__port,
             '__job_task_db': self.__job_task_db,
             '__pycsw_records_db': self.__pycsw_records_db,
             '__mapproxy_config_db': self.__mapproxy_config_db,
@@ -42,7 +44,7 @@ class PostgresHandler:
         :param product_version: layer version
         :return: str [job id[
         """
-        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password, self.__port)
         keys_values = {'resourceId': product_id, 'version': product_version}
         res = client.get_rows_by_keys('Job', keys_values, order_key='creationTime', order_desc=True)
         latest_job_id = res[0][0]
@@ -55,7 +57,7 @@ class PostgresHandler:
         :param job_id: id of relevant job
         :return: dict of job data
         """
-        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password, self.__port)
         res = client.get_rows_by_keys('Job', {'id': job_id}, return_as_dict=True)
         return res[0]
 
@@ -65,7 +67,7 @@ class PostgresHandler:
         :param job_id: id of relevant job
         :return: dict of job data
         """
-        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password, self.__port)
         res = client.get_rows_by_keys('Task', {'jobId': job_id}, return_as_dict=True)
         return res
 
@@ -76,7 +78,7 @@ class PostgresHandler:
         :return:
         """
         deletion_command = f"""DELETE FROM "layer_history" WHERE "layerId"='{job_id}';"""
-        client = postgres.PGClass(self.__end_point_url, self.__agent_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__agent_db, self.__user, self.__password, self.__port)
         try:
             client.command_execute([deletion_command])
             _log.info(f'Cleaned up successfully (layer_history) - from [{self.__agent_db}] , job: [{job_id}]')
@@ -93,7 +95,7 @@ class PostgresHandler:
         :return: dict -> {'status': Bool, 'message': str'}
         """
         deletion_command = f"""DELETE FROM "Task" WHERE "jobId"='{job_id}';DELETE FROM "Job" WHERE "id"='{job_id}';"""
-        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__job_task_db, self.__user, self.__password, self.__port)
         try:
             client.command_execute([deletion_command])
             _log.info(f'Cleaned up successfully (job + task)- [{self.__job_task_db}] job: [{job_id}]')
@@ -111,7 +113,7 @@ class PostgresHandler:
         :return: dict -> {'status': Bool, 'message': str'}
         """
         deletion_command = f"""DELETE FROM "records" WHERE "product_id"='{product_id}'"""
-        client = postgres.PGClass(self.__end_point_url, self.__pycsw_records_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__pycsw_records_db, self.__user, self.__password, self.__port)
         try:
             client.command_execute([deletion_command])
             _log.info(
@@ -128,7 +130,7 @@ class PostgresHandler:
         This method will return current configuration of layer on mapproxy config db
         :return: dict -> json
         """
-        client = postgres.PGClass(self.__end_point_url, self.__mapproxy_config_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__mapproxy_config_db, self.__user, self.__password, self.__port)
         try:
             res = client.get_column_by_name(table_name='config', column_name="data")[0]
             _log.info(f'got json-config ok')
@@ -142,7 +144,7 @@ class PostgresHandler:
         This will return all mapproxy configuration exists by last creation chronology
         :return: list of dicts
         """
-        client = postgres.PGClass(self.__end_point_url, self.__mapproxy_config_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__mapproxy_config_db, self.__user, self.__password, self.__port)
         res = client.get_rows_by_order(table_name=self.__mapproxy_config_table, order_key='updated_time', order_desc=True,
                                        return_as_dict=True)
         _log.info(f'Received {len(res)} of mapproxy config files')
@@ -155,7 +157,7 @@ class PostgresHandler:
         :param value: layer id on mapproxy config
         :param value: dict -> json
         """
-        client = postgres.PGClass(self.__end_point_url, self.__mapproxy_config_db, self.__user, self.__password)
+        client = postgres.PGClass(self.__end_point_url, self.__mapproxy_config_db, self.__user, self.__password, self.__port)
 
         try:
             res = client.delete_row_by_id(self.__mapproxy_config_table, id, value)

@@ -25,13 +25,14 @@ def run_ingestion():
     This is preprocess that will run and create new unique layer to process sync step over
     :return: dict -> {product_id:str, product_version:str}
     """
-    pg_credential = config.PGProvider(config.PG_ENDPOINT_URL_CORE_A,
-                                      config.PG_USER_CORE_A,
-                                      config.PG_PASS_CORE_A,
-                                      config.PG_JOB_TASK_DB_CORE_A,
-                                      config.PG_PYCSW_RECORD_DB_CORE_A,
-                                      config.PG_MAPPROXY_DB_CORE_A,
-                                      config.PG_AGENT_DB_CORE_A)
+    pg_credential = config.PGProvider(entrypoint_url=config.PG_ENDPOINT_URL_CORE_A,
+                                      port=config.PG_PORT_A,
+                                      pg_user=config.PG_USER_CORE_A,
+                                      pg_pass=config.PG_PASS_CORE_A,
+                                      pg_job_task_db=config.PG_JOB_TASK_DB_CORE_A,
+                                      pg_pycsw_record_db=config.PG_PYCSW_RECORD_DB_CORE_A,
+                                      pg_mapproxy_db=config.PG_MAPPROXY_DB_CORE_A,
+                                      pg_agent_db=config.PG_AGENT_DB_CORE_A)
 
     pg_handler = postgres_adapter.PostgresHandler(pg_credential)
     initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
@@ -42,7 +43,7 @@ def run_ingestion():
     _log.info('Send request to stop agent watch')
 
     discrete_agent_adapter = discrete_ingestion_executors.DiscreteAgentAdapter(
-        entrypoint_url=config.DISCRETE_JOB_MANAGER_URL_CORE_A,
+        entrypoint_url=config.DISCRETE_AGENT_CORE_A,
         source_data_provider=config.SOURCE_DATA_PROVIDER_A)
 
     watch_status = discrete_agent_adapter.stop_agent_watch()  # validate not agent not watching for ingestion
@@ -341,19 +342,19 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
 # ============================================= core A validation ======================================================
 
 
-def get_layer_spec_tile_count(layer_id, target, layer_spec_api):
+def get_layer_spec_tile_count(layer_id, target, layer_spec_url):
     """
     This method query layer spec api and receive tile count as written after core A sync process and compare with
     expected value that provided.
     :param layer_id: "product_id-product_version"
     :param target: destination target
-    :param layer_spec_api:url for layer spec route
+    :param layer_spec_url:url for layer spec route
     :return: dict -> {state:bool, msg:str}
     """
     _log.info(
         '\n\n****************************** Get actual tile count on layer spec ***************************************')
     try:
-        layer_spec = layer_spec_api.LayerSpec(layer_spec_api)
+        layer_spec = layer_spec_api.LayerSpec(layer_spec_url)
         status_code, res = layer_spec.get_tiles_count(layer_id=layer_id,
                                                       target=target)
 
@@ -380,7 +381,7 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_api):
     return res
 
 
-def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTaskTypes.TOC_SYNC.value):
+def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTaskTypes.TOC_SYNC.value, job_manager_endpoint_url=config.JOB_MANAGER_ROUTE_CORE_A):
     """
     The method validate core A toc task creation and validate num of tiles
     :param job_id: id of related job for toc task
@@ -399,7 +400,7 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
               f'Expected tiles: {expected_tiles_count}')
     result = {}
     try:
-        job_manager_client = job_manager_api.JobsTasksManager(config.JOB_MANAGER_ROUTE_CORE_A)
+        job_manager_client = job_manager_api.JobsTasksManager(job_manager_endpoint_url)
         resp = job_manager_client.find_tasks(param)[0]
         toc = resp['parameters']['tocData']
         result['state'] = toc['tileCount'] == expected_tiles_count
