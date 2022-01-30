@@ -11,6 +11,7 @@ from sync_tester.functions import executors
 
 is_logger_init = False
 _log = logging.getLogger('sync_tester.tests.test_run_only_ingestion')
+_log.info('Loading tests suite for sync services')
 
 
 def test_trigger_to_gw():
@@ -36,7 +37,7 @@ def test_trigger_to_gw():
                             f'related errors:\n' \
                             f'{msg}'
 
-    tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version)
+    # tiles_count = executors.count_tiles_amount(ingestion_product_id, ingestion_product_version)
     #
     # # ======================================= trigger sync by nifi api =================================================
     # if config.SYNC_FROM_A_MANUAL:
@@ -169,4 +170,3 @@ if config.DEBUG:
     init_logger()
     test_trigger_to_gw()
 
-_log.info('Loading tests suite for sync services')

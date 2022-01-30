@@ -38,15 +38,15 @@ class ResponseCode(enum.Enum):
     ServerError = 500  # problem with error
 
 
-class JobTaskTypes(enum.Enum):
-    """
-    Job manager types of job
-    """
-    DISCRETE_TILING = 'Discrete-Tiling'
-    SYNC_TRIGGER = 'SYNC_TRIGGER'
-    TOC_SYNC = 'tocSync'
-    SYNC_TARGET = 'syncTarget'
-    TILE_LOADING = 'tileLoading'
+# class JobTaskTypes(enum.Enum):
+#     """
+#     Job manager types of job
+#     """
+#     DISCRETE_TILING = 'Discrete-Tiling'
+#     SYNC_TRIGGER = 'SYNC_TRIGGER'
+#     TOC_SYNC = 'tocSync'
+#     SYNC_TARGET = 'syncTarget'
+#     TILE_LOADING = 'tileLoading'
 
 
 class SyncOperationType(enum.Enum):
@@ -84,6 +84,21 @@ DEBUG = environment.get('debug', True)
 DEBUG_LOG = environment.get('debug_log', True)
 LOG_TO_FILE = environment.get('log_to_file', True)
 LOG_OUTPUT_PATH = environment.get('log_output_path', '/tmp/auto-logs')
+
+# =============================================== outer configurations =================================================
+job_manager_enum = conf.get('job_manger_enum')
+
+
+class JobTaskTypes(enum.Enum):
+    """
+    Job manager types of job
+    """
+    DISCRETE_TILING = job_manager_enum.get("discrete_tiling", "Discrete-Tiling")
+    SYNC_TRIGGER = job_manager_enum.get("sync_trigger", "SYNC_TRIGGER")
+    TOC_SYNC = job_manager_enum.get("toc_sync", "tocSync")
+    SYNC_TARGET = job_manager_enum.get("sync_target", "syncTarget")
+    TILE_LOADING = job_manager_enum.get("tile_loading", "tileLoading")
+
 
 """
 # coreA [send core]

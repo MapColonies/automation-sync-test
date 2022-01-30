@@ -549,11 +549,11 @@ def clean_env(delete_request):
                f'{delete_request}')
 
     if config.ENV_NAME == config.EnvironmentTypes.QA.name or config.ENV_NAME == config.EnvironmentTypes.DEV.name:
-        print('will do cleanup for azure environment')
+        print('\nwill do cleanup for azure environment')
         return {'status': 'Need to be updated'}
 
     elif config.ENV_NAME == config.EnvironmentTypes.PROD.name:
-        print('will do cleanup for production environment')
+        print('\nwill do cleanup for production environment')
         return {'status': 'Need to be updated'}
 
     else:
