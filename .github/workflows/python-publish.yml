@@ -1,0 +1,39 @@
+name: CI
+
+
+on:
+  push:
+    tags:
+      - '*'
+jobs:
+
+  build_and_test:
+    runs-on: ubuntu-latest
+    env: 
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: setup version
+      run: |
+          ./generate_version.sh
+          
+    - name: Print version
+      run: |
+          echo "the version is:"  ${{ env.TAG_NAME }}
+      
+    - name: Azure Pipelines Action
+      uses: Azure/pipelines@v1
+      with:
+        azure-devops-project-url: https://dev.azure.com/Libot-Mipui-Org/automation-sync-test
+        azure-pipeline-name: 'build-and-push-to-ACR'
+        azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Run Snyk to check for vulnerabilities
+      uses: snyk/actions/node@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}  
