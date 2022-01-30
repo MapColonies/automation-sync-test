@@ -25,17 +25,23 @@ def run_ingestion():
     This is preprocess that will run and create new unique layer to process sync step over
     :return: dict -> {product_id:str, product_version:str}
     """
-    pg_credential = config.PGProvider(entrypoint_url=config.PG_ENDPOINT_URL_CORE_A,
-                                      port=config.PG_PORT_A,
-                                      pg_user=config.PG_USER_CORE_A,
-                                      pg_pass=config.PG_PASS_CORE_A,
-                                      pg_job_task_db=config.PG_JOB_TASK_DB_CORE_A,
-                                      pg_pycsw_record_db=config.PG_PYCSW_RECORD_DB_CORE_A,
-                                      pg_mapproxy_db=config.PG_MAPPROXY_DB_CORE_A,
-                                      pg_agent_db=config.PG_AGENT_DB_CORE_A)
+    if config.DB_ACCESS:
+        pg_credential = config.PGProvider(entrypoint_url=config.PG_ENDPOINT_URL_CORE_A,
+                                          port=config.PG_PORT_A,
+                                          pg_user=config.PG_USER_CORE_A,
+                                          pg_pass=config.PG_PASS_CORE_A,
+                                          pg_job_task_db=config.PG_JOB_TASK_DB_CORE_A,
+                                          pg_pycsw_record_db=config.PG_PYCSW_RECORD_DB_CORE_A,
+                                          pg_mapproxy_db=config.PG_MAPPROXY_DB_CORE_A,
+                                          pg_agent_db=config.PG_AGENT_DB_CORE_A)
 
-    pg_handler = postgres_adapter.PostgresHandler(pg_credential)
-    initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
+        pg_handler = postgres_adapter.PostgresHandler(pg_credential)
+        initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
+        mapproxy_last_id = initial_mapproxy_configs[0]['id']
+        mapproxy_length = len(initial_mapproxy_configs)
+    else:
+        mapproxy_last_id = None
+        mapproxy_length = None
     ingestion_data = {}
     _log.info(
         '\n\n*********************************** Start preparing for ingestion **************************************')
@@ -148,9 +154,9 @@ def run_ingestion():
         f'\n------------------------------ Discrete ingestion complete -------------------------------------------\n')
     cleanup_data = {
         'product_id': ingestion_data['product_id'],
-        'product_version': ingestion_data['product_version'],
-        "mapproxy_last_id": initial_mapproxy_configs[0]['id'],
-        "mapproxy_length": len(initial_mapproxy_configs),
+        'product_version': ingestion_data.get('product_version'),
+        "mapproxy_last_id": mapproxy_last_id,
+        "mapproxy_length": mapproxy_length,
         "folder_to_delete": os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_DST_DIR_CORE_A),
         "tiles_folder_to_delete": "tiles",
         "watch_status": False,

@@ -76,6 +76,7 @@ with open(CONF_FILE, 'r') as fp:
 # ========================================== environments configurations ===============================================
 environment = conf.get('environment')
 # SYNC_FROM_A_MANUAL = environment.get('manual_sync', True)
+DB_ACCESS = environment.get('access_db', False)
 SYNC_TIMEOUT = environment.get('sync_timeout', 300)
 CORE_TARGET = environment.get('core_target', "target2")
 ENV_NAME = environment.get('name', 'QA')
