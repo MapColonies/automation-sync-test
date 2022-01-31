@@ -4,7 +4,7 @@ This module implement flow execution and multiple complex flow with main infrast
 
 import logging
 import os
-
+import time
 from discrete_kit.functions.shape_functions import ShapeToJSON
 
 from sync_tester.configuration import config
@@ -258,6 +258,54 @@ def trigger_orthphoto_history_sync(product_id, product_version):
 
 
 # ============================================ job manager controllers ============-====================================
+def creation_job_loop_follower(criteria):
+    """
+    This method will execute "validate_sync_job_creation" method based on loop + timeout excepting sync receiving job
+    :param criteria: dict -> running criteria -> example:
+    {
+        product_id: str,
+        product_id: product_version,
+        job_type: str -> [SYNC_TRIGGER],
+        job_manager_url: str -> url of job manager
+    }
+    :return: dict -> {state: bool, message: str, records: list[dict]}
+    """
+    _log.info(
+        f'\n***************************************** Sync receiver loop ***********************************************')
+
+    timeout = criteria['timeout']
+    product_id = criteria['product_id']
+    product_version = criteria['product_version']
+    job_type = criteria['job_type']
+    job_manager_url = criteria['job_manager_url']
+
+    retry_count = 1
+    t_end = time.time() + timeout
+    running = True
+    while running:
+        _log.info(f'Running search sync receive:\n'
+                  f'{product_id}-{product_version}\n'
+                  f'Job Type: {job_type}\n'
+                  f'Search try iteration No. {retry_count}')
+
+        res = validate_sync_job_creation(product_id=product_id,
+                                         product_version=product_version,
+                                         job_type=job_type,
+                                         job_manager_url=job_manager_url)
+
+        current_time = time.time()
+
+        if res['state']:
+            return res
+
+        elif t_end < current_time:
+            _log.warning(f'Failed search receive job because of timeout')
+            res['message'] = 'Failed search receive job because of timeout'
+            return res
+
+        else:
+            _log.info(f'Failed search receive job will try next iteration')
+            retry_count += 1
 
 
 def validate_sync_job_creation(product_id, product_version, job_type, job_manager_url):
@@ -387,7 +435,8 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_url):
     return res
 
 
-def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTaskTypes.TOC_SYNC.value, job_manager_endpoint_url=config.JOB_MANAGER_ROUTE_CORE_A):
+def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config.JobTaskTypes.TOC_SYNC.value,
+                               job_manager_endpoint_url=config.JOB_MANAGER_ROUTE_CORE_A):
     """
     The method validate core A toc task creation and validate num of tiles
     :param job_id: id of related job for toc task
@@ -472,6 +521,7 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
 
     :return: result dict -> {'validation': bool, 'reason':{}}, pycsw_records -> dict, links -> dict
     """
+
     try:
         _log.info(
             f'\n\n******************** Will run validation of toc metadata vs. pycsw record ************************')

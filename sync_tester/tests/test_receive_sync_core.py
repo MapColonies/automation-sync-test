@@ -28,14 +28,25 @@ def test_receive_from_gw():
                                                              f"related errors:\n" \
                                                              f"at least on of layer params missing: product_id: [{receive_product_id}], " \
                                                              f"product_version: [{receive_product_version}]"
+    _log.info(f'\n=================================  Sync receiver coreB testing ====================================\n')
 
     # ======================================= Sync-received job task creation ==========================================
 
     try:
-        resp = executors.validate_sync_job_creation(receive_product_id,
-                                                    receive_product_version,
-                                                    config.JobTaskTypes.SYNC_TARGET.value,
-                                                    job_manager_url=config.JOB_MANAGER_ROUTE_CORE_B)
+
+        criteria_params = {
+            'timeout': config.RECEIVE_JOB_FIND_TIMEOUT_B,
+            'product_id': receive_product_id,
+            'product_version': receive_product_version,
+            'job_type': config.JobTaskTypes.SYNC_TARGET.value,
+            'job_manager_url': config.JOB_MANAGER_ROUTE_CORE_B
+
+        }
+        resp = executors.creation_job_loop_follower(criteria_params)
+        # resp = executors.validate_sync_job_creation(receive_product_id,
+        #                                             receive_product_version,
+        #                                             config.JobTaskTypes.SYNC_TARGET.value,
+        #                                             job_manager_url=config.JOB_MANAGER_ROUTE_CORE_B)
         msg = resp['message']
         sync_receive_job_state = resp['state']
         sync_receive_job = resp['record']

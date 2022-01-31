@@ -161,6 +161,7 @@ S3_BUCKET_NAME_CORE_A = _s3_credentials_a.get('s3_bucket_name', 'UNKNOWN')
 """
 
 conf_receive_core = conf.get('receive_core')
+RECEIVE_JOB_FIND_TIMEOUT_B = conf_receive_core.get('except_sync_job_timeout', 300)
 PRODUCT_ID_B = conf_receive_core.get('product_id')
 PRODUCT_VERSION_B = conf_receive_core.get('product_version')
 TILES_PROVIDER_B = conf_receive_core.get('tiles_provider')
