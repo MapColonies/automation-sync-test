@@ -1,7 +1,7 @@
 """
 This module implement flow execution and multiple complex flow with main infrastructure layer
 """
-
+import json
 import logging
 import os
 import time
@@ -119,7 +119,7 @@ def run_ingestion():
               f'SourceId: {res["resource_name"]}\n'
               f'----------------------------------- End of ingestion data preparation ---------------------------------\n')
 
-    # =============================================== Run ingestion ========================================================
+    # ============================================== Run ingestion =====================================================
     _log.info(
         '\n************************************ Start Discrete ingestion *****************************************')
     _log.info(f'Run data validation on source data')
@@ -179,42 +179,58 @@ def run_ingestion():
             'message': msg}
 
 
-# =========================================== start sync from core A ===================================================
-
-
 def count_tiles_amount(product_id, product_version, core):
     """
-
+    This method counting actual amount transferred and exists on storage
     :param product_id: str -> resource id of the layer to sync
     :param product_version: version of discrete
     :param core: "A" [send] | "B" [received]
     :return: int -> total amount of tiles
     """
-
+    _log.info('\n\n*********************************** Start tiles count on storage *****************************************')
     if core.lower() == "b":
-        if config.TILES_PROVIDER_B:
-            s3_credential = config.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_B,
-                                              access_key=config.S3_ACCESS_KEY_CORE_B,
-                                              secret_key=config.S3_SECRET_KEY_CORE_B,
-                                              bucket_name=config.S3_BUCKET_NAME_CORE_B)
+        if config.TILES_PROVIDER_B.lower() == 's3':
+            s3_credential = structs.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_B,
+                                               access_key=config.S3_ACCESS_KEY_CORE_B,
+                                               secret_key=config.S3_SECRET_KEY_CORE_B,
+                                               bucket_name=config.S3_BUCKET_NAME_CORE_B)
+            fs_provider = structs.FSProvider(is_fs=False)
         else:
             s3_credential = None
-        storage_provider = config.StorageProvider(tiles_provider=config.TILES_PROVIDER_B,
-                                                  s3_credential=s3_credential)
-    elif core.lower() == "a":
-        if config.TILES_PROVIDER_A:
-            s3_credential = config.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_A,
-                                              access_key=config.S3_ACCESS_KEY_CORE_A,
-                                              secret_key=config.S3_SECRET_KEY_CORE_A,
-                                              bucket_name=config.S3_BUCKET_NAME_CORE_A)
-        else:
-            s3_credential = None
+            fs_provider = structs.FSProvider(is_fs=True,
+                                             tiles_dir=config.NFS_TILES_DIR_B)
 
-        storage_provider = config.StorageProvider(tiles_provider=config.TILES_PROVIDER_A,
-                                                  s3_credential=s3_credential)
+        storage_provider = structs.StorageProvider(tiles_provider=config.TILES_PROVIDER_B,
+                                                   s3_credential=s3_credential,
+                                                   pvc_handler_url=config.PVC_HANDLER_URL_CORE_B,
+                                                   fs_provider=fs_provider)
+    elif core.lower() == "a":
+        if config.TILES_PROVIDER_A.lower() == 's3':
+            s3_credential = structs.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_A,
+                                               access_key=config.S3_ACCESS_KEY_CORE_A,
+                                               secret_key=config.S3_SECRET_KEY_CORE_A,
+                                               bucket_name=config.S3_BUCKET_NAME_CORE_A)
+            fs_provider = structs.FSProvider(is_fs=False)
+
+        else:
+            s3_credential = None
+            fs_provider = structs.FSProvider(is_fs=True,
+                                             tiles_dir=config.NFS_TILES_DIR_A)
+
+        storage_provider = structs.StorageProvider(tiles_provider=config.TILES_PROVIDER_A,
+                                                   s3_credential=s3_credential,
+                                                   pvc_handler_url=config.PVC_HANDLER_URL_CORE_A,
+                                                   fs_provider=fs_provider
+                                                   )
 
     data_manager = data_executors.DataManager(watch=False, storage_provider=storage_provider)
+    _log.info(f'Will execute tile search and count on:\n'
+              f'Core: {core}\n'
+              f'Tile storage provider: {storage_provider.get_tiles_provider()}')
     res = data_manager.count_tiles_on_storage(product_id, product_version)
+
+    _log.info(
+        f'\n----------------------------------- End tiles count on storage ------------------------------------------\n')
     return res
 
 
@@ -226,7 +242,7 @@ def trigger_orthphoto_history_sync(product_id, product_version):
     :return:
     """
     _log.info(
-        '\n\n******************************** Start Triggering Sync for ingestion *************************************')
+        '\n******************************** Start Triggering Sync for ingestion *************************************')
 
     sync_request_body = {
         'resourceId': product_id,
@@ -270,8 +286,9 @@ def creation_job_loop_follower(criteria):
     }
     :return: dict -> {state: bool, message: str, records: list[dict]}
     """
+    end_process_string = '\n------------------------------------------ End Sync receiver loop ------------------------------------------'
     _log.info(
-        f'\n***************************************** Sync receiver loop ***********************************************')
+        f'\n*************************************** Start Sync receiver loop ********************************************')
 
     timeout = criteria['timeout']
     product_id = criteria['product_id']
@@ -296,10 +313,12 @@ def creation_job_loop_follower(criteria):
         current_time = time.time()
 
         if res['state']:
+            _log.info(f'{end_process_string}')
             return res
 
         elif t_end < current_time:
             _log.warning(f'Failed search receive job because of timeout')
+            _log.info(f'{end_process_string}')
             res['message'] = 'Failed search receive job because of timeout'
             return res
 
@@ -363,13 +382,13 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
     """
 
     _log.info(
-        '\n\n************************************ Start Follow Sync job ***********************************************')
+        '\n\n*************************************** Start Follow Sync job **********************************************')
     _log.debug(f'Parameters for follow sync job:\n'
                f'Product ID: {product_id}\n'
                f'Product version: {product_id}\n'
                f'Product Type: {product_type}\n'
                f'Follow timeout bounds: {running_timeout} sec\n'
-               f'Internal system delay {internal_timeout}')
+               f'Internal system delay: {internal_timeout} sec')
 
     job_manager_client = job_manager_api.JobsTasksManager(job_manager_url)
     res = job_manager_client.follow_running_job_manager(product_id=product_id,
@@ -377,6 +396,7 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
                                                         product_type=product_type,
                                                         timeout=running_timeout,
                                                         internal_timeout=internal_timeout)
+    res["status"] = True if res["status"] == config.JobStatus.Completed.value else False
     _log.debug(f'Results from following sync job:\n'
                f'State: {res["status"]}\n'
                f'Message: {res["message"]}')
@@ -389,7 +409,7 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
                 _log.debug(f'Task ID: [{task["id"]}], No. Attempts: [{task["attempts"]}]')
 
     _log.info(
-        f'\n----------------------------------- Finish Follow Sync -----------------------------------------------')
+        f'\n---------------------------------------- Finish Follow Sync ----------------------------------------------')
     return res
 
 
@@ -521,16 +541,21 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
 
     :return: result dict -> {'validation': bool, 'reason':{}}, pycsw_records -> dict, links -> dict
     """
-
+    _log.info(
+        f'\n\n************************* Will run validation of toc metadata vs. pycsw record ***************************')
+    _log.info(f'Will execute catalog validation (pycsw) with original metadata (toc) with current details:\n'
+              f'Catalog url: [{pycsw_url}]\n'
+              f'Query param to catalog: [{json.dumps(query_params, indent=4)}]\n'
+              f'Metadata: will be presented only for log "debug" level')
+    _log.debug(f'Metadata from toc: {json.dumps(metadata, indent=4, ensure_ascii=False)}')
     try:
-        _log.info(
-            f'\n\n******************** Will run validation of toc metadata vs. pycsw record ************************')
         pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
         toc_json = {'metadata': ShapeToJSON().create_metadata_from_toc(metadata['metadata'])}
         results = pycsw_conn.validate_pycsw(toc_json, layer_id, layer_version)
         res_dict = results['results']
         pycsw_records = results['pycsw_record']
         links = results['links']
+        _log.info(f'')
 
     except Exception as e:
         _log.error(f'Failed validation of pycsw with error: [{str(e)}]')
@@ -539,7 +564,7 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
         links = {}
 
     _log.info(
-        f'\n----------------------- Finish validation of toc metadata vs. pycsw record --------------------------')
+        f'\n-------------------------- Finish validation of toc metadata vs. pycsw record ----------------------------')
 
     return res_dict, pycsw_records, links
 
@@ -553,7 +578,7 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     :return: result dict -> {'validation': bool, 'reason':{}}, links -> dict
     """
     _log.info(
-        f'\n\n******************** Will run validation of layer mapproxy vs. pycsw record ************************')
+        f'\n\n********************** Will run validation of layer mapproxy vs. pycsw record *************************')
 
     if params['tiles_storage_provide'].lower() == 's3':
         s3_credential = structs.S3Provider(entrypoint_url=params['endpoint_url'],
@@ -572,7 +597,7 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     return res
 
     _log.info(
-        f'\n----------------------- Finish validation of layer mapproxy vs. pycsw record --------------------------')
+        f'\n----------------------- Finish validation of layer mapproxy vs. pycsw record ---------------------------')
 
 
 # ================================================== cleanup ===========================================================

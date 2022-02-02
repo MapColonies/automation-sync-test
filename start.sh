@@ -35,6 +35,11 @@ case $PYTEST_RUNNING_MODE in
     pytest --show-capture=no /source_code/sync_tester/tests/test_run_only_ingestion.py
     ;;
 
+  watcher)
+  echo -ne " ***** Will Run watcher cli *****\n"
+  python /source_code/sync_tester/watch_cli/watch_app.py
+  ;;
+
   *)
     echo -ne " ----- unknown tests mode params: [PYTEST_RUNNING_MODE=$PYTEST_RUNNING_MODE] ----- \n"
     ;;

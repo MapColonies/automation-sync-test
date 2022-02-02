@@ -84,9 +84,10 @@ def test_trigger_to_gw():
                                          product_version=ingestion_product_version,
                                          product_type=config.JobTaskTypes.SYNC_TRIGGER.value,
                                          job_manager_url=config.JOB_MANAGER_ROUTE_CORE_A,
-                                         running_timeout=config.SYNC_TIMEOUT,
+                                         running_timeout=config.SYNC_TIMEOUT_A,
                                          internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
-        sync_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
+
+        sync_follow_state = resp['status']
         msg = resp['message']
     except Exception as e:
         sync_follow_state = False

@@ -28,7 +28,8 @@ def test_receive_from_gw():
                                                              f"related errors:\n" \
                                                              f"at least on of layer params missing: product_id: [{receive_product_id}], " \
                                                              f"product_version: [{receive_product_version}]"
-    _log.info(f'\n=================================  Sync receiver coreB testing ====================================\n')
+    _log.info(
+        f'\n=======================================  Sync receiver coreB testing ========================================\n')
 
     # ======================================= Sync-received job task creation ==========================================
 
@@ -71,9 +72,10 @@ def test_receive_from_gw():
                                          product_version=receive_product_version,
                                          product_type=config.JobTaskTypes.SYNC_TARGET.value,
                                          job_manager_url=config.JOB_MANAGER_ROUTE_CORE_B,
-                                         running_timeout=config.SYNC_TIMEOUT,
-                                         internal_timeout=config.BUFFER_TIMEOUT_CORE_A)
-        sync_receive_follow_state = True if resp['status'] == config.JobStatus.Completed.value else False
+                                         running_timeout=config.SYNC_TIMEOUT_B,
+                                         internal_timeout=config.BUFFER_TIMEOUT_CORE_B)
+
+        sync_receive_follow_state = resp['status']
         msg = resp['message']
     except Exception as e:
         sync_receive_follow_state = False
@@ -85,14 +87,22 @@ def test_receive_from_gw():
 
     # ======================================== Sync receive tiles validator ============================================
     tile_count_on_toc = sync_receive_job['tasks'][0]['parameters']['expectedTilesCount']
-    tile_count_on_storage = executors.count_tiles_amount(receive_product_id, receive_product_version, core="B")
+    try:
+        tile_count_on_storage = executors.count_tiles_amount(receive_product_id, receive_product_version, core="B")
+        tile_count_state = tile_count_on_toc == tile_count_on_storage
+        msg = f'Tile count on toc: [{tile_count_on_toc}] | Tile count on Storage: [{tile_count_on_storage}]'
+        _log.info(f'Tile count on toc: [{tile_count_on_toc}] | Tile count on Storage: [{tile_count_on_storage}]')
+    except Exception as e:
+        tile_count_state = False
+        msg = str(e)
 
-    assert tile_count_on_toc == tile_count_on_storage, f'Test: [{test_receive_from_gw.__name__}] Failed: tile count validation\n' \
-                                                       f'related errors:\n' \
-                                                       f'{msg}'
+    assert tile_count_state, f'Test: [{test_receive_from_gw.__name__}] Failed: tile count validation\n' \
+                             f'related errors:\n' \
+                             f'{msg}'
 
     # =========================================== validate pycsw record ================================================
     time.sleep(config.BUFFER_TIMEOUT_CORE_B)
+
     try:
         validation_dict, pycsw_records, links = executors.validate_metadata_pycsw(sync_receive_job_metadata,
                                                                                   receive_product_id,

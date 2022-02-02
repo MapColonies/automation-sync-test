@@ -75,9 +75,7 @@ with open(CONF_FILE, 'r') as fp:
 
 # ========================================== environments configurations ===============================================
 environment = conf.get('environment')
-# SYNC_FROM_A_MANUAL = environment.get('manual_sync', True)
 DB_ACCESS = environment.get('access_db', False)
-SYNC_TIMEOUT = environment.get('sync_timeout', 300)
 CORE_TARGET = environment.get('core_target', "target2")
 ENV_NAME = environment.get('name', 'QA')
 DEBUG = environment.get('debug', True)
@@ -108,6 +106,7 @@ conf_send_core = conf.get('send_core')
 SOURCE_DATA_PROVIDER_A = conf_send_core.get('source_data_provider', "NFS")
 TILES_PROVIDER_A = conf_send_core.get('tiles_provider', "S3")
 SYNC_FROM_A_MANUAL = conf_send_core.get('manuel_sync', False)
+SYNC_TIMEOUT_A = conf_send_core.get('sync_timeout', 300)
 # ================================================== nifi routes =======================================================
 nifi_a = conf_send_core.get('nifi_credentials_a')
 TRIGGER_NIFI_ROUTE_CORE_A = nifi_a.get('trigger_nifi', 'https://')
@@ -123,6 +122,7 @@ LAYER_SPEC_ROUTE_CORE_A = endpoints_routes_a.get('layer_spec', 'https://')
 
 # ============================================= discrete ingestion =====================================================
 _endpoints_discrete_ingestion_a = conf_send_core.get('discrete_ingestion_credential')
+NFS_TILES_DIR_A = _endpoints_discrete_ingestion_a.get('nfs_tiles_dir', '/tmp')
 DISCRETE_AGENT_CORE_A = _endpoints_discrete_ingestion_a.get('agent_url', 'https://')
 PVC_HANDLER_URL_CORE_A = _endpoints_discrete_ingestion_a.get('pvc_handler_url', 'https://')
 DISCRETE_RAW_ROOT_DIR_CORE_A = _endpoints_discrete_ingestion_a.get('discrete_raw_root_dir', '/tmp')
@@ -165,6 +165,7 @@ RECEIVE_JOB_FIND_TIMEOUT_B = conf_receive_core.get('except_sync_job_timeout', 30
 PRODUCT_ID_B = conf_receive_core.get('product_id')
 PRODUCT_VERSION_B = conf_receive_core.get('product_version')
 TILES_PROVIDER_B = conf_receive_core.get('tiles_provider')
+SYNC_TIMEOUT_B = conf_receive_core.get('sync_timeout', 300)
 # ================================================= api's routes =======================================================
 endpoints_routes_b = conf_receive_core.get('api_routes_b')
 TRIGGER_NIFI_ROUTE_CORE_B = endpoints_routes_b.get('trigger_nifi', 'https://')
@@ -178,6 +179,7 @@ MAPPROXY_ROUTE_CORE_B = endpoints_routes_b.get('mapproxy_url', 'https://')
 
 # ============================================= discrete ingestion =====================================================
 _endpoints_discrete_ingestion_b = conf_receive_core.get('discrete_ingestion_credential_b')
+PVC_HANDLER_URL_CORE_B = _endpoints_discrete_ingestion_b.get('pvc_handler_url', 'https://')
 PYCSW_URL_B = _endpoints_discrete_ingestion_b.get('pycsw_url', "UNKNOWN")
 PYCSW_GET_RASTER_RECORD_PARAMS_B = _endpoints_discrete_ingestion_b.get('pycsw_get_raster_record_params', {})
 UPDATE_ZOOM_CORE_B = _endpoints_discrete_ingestion_b.get('change_max_zoom_level', True)

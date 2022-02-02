@@ -1,7 +1,8 @@
 """This module will provide main functionality to run discrete ingestion"""
 import logging
 import json
-from sync_tester.configuration import config
+# from sync_tester.configuration import config
+from mc_automation_tools.models import structs
 from mc_automation_tools.ingestion_api import agent_api
 from mc_automation_tools import common
 _log = logging.getLogger('sync_tester.functions.discrete_ingestion_executors')
@@ -24,7 +25,7 @@ class DiscreteAgentAdapter:
         try:
             resp = self.__conn.get_watching_statuses()
             status_code = resp.status_code
-            if status_code != config.ResponseCode.Ok.value:
+            if status_code != structs.ResponseCode.Ok.value:
                 return {'state': False,
                         'reason': f'Failed on getting watch status API after changing: [{status_code}]:[{resp.content}]'}
 
@@ -41,7 +42,7 @@ class DiscreteAgentAdapter:
         try:
             resp = self.__conn.post_stop_watch()
             status_code = resp.status_code
-            if status_code != config.ResponseCode.Ok.value:
+            if status_code != structs.ResponseCode.Ok.value:
                 return {'state': False, 'reason': f'Failed on post stop watch on API: [{status_code}]:[{resp.content}]'}
 
             reason = json.loads(resp.content)
@@ -61,7 +62,7 @@ class DiscreteAgentAdapter:
         try:
             resp = self.__conn.post_start_watch()
             status_code = resp.status_code
-            if status_code != config.ResponseCode.Ok.value:
+            if status_code != structs.ResponseCode.Ok.value:
                 return {'state': False, 'reason': f'Failed on post start watch on API: [{status_code}]:[{resp.content}]'}
 
             reason = json.loads(resp.content)
