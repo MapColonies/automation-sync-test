@@ -13,6 +13,7 @@ from sync_tester.functions import discrete_ingestion_executors, data_executors
 from sync_tester.postgres import postgres_adapter
 from mc_automation_tools.validators import pycsw_validator, mapproxy_validator
 from mc_automation_tools.ingestion_api import job_manager_api
+from mc_automation_tools.parse import stringy
 from mc_automation_tools.sync_api import layer_spec_api
 from mc_automation_tools.models import structs
 from conftest import ValueStorage
@@ -43,8 +44,9 @@ def run_ingestion():
         mapproxy_last_id = None
         mapproxy_length = None
     ingestion_data = {}
+    stringy.pad_with_stars('Start preparing for ingestion')
     _log.info(
-        '\n\n*********************************** Start preparing for ingestion **************************************')
+        '\n\n' + stringy.pad_with_stars('Start preparing for ingestion'))
 
     _log.info('Send request to stop agent watch')
 
@@ -117,11 +119,11 @@ def run_ingestion():
     _log.info(f'\nFinish prepare of ingestion data:\n'
               f'Source on dir: {res["ingestion_dir"]}\n'
               f'SourceId: {res["resource_name"]}\n'
-              f'----------------------------------- End of ingestion data preparation ---------------------------------\n')
+              + stringy.pad_with_minus('End of ingestion data preparation') + '\n')
 
     # ============================================== Run ingestion =====================================================
     _log.info(
-        '\n************************************ Start Discrete ingestion *****************************************')
+        '\n'+stringy.pad_with_stars('Start Discrete ingestion'))
     _log.info(f'Run data validation on source data')
     state, json_data = data_manager.validate_source_directory()
     if not state:
@@ -151,7 +153,7 @@ def run_ingestion():
             if task['attempts'] > 0:
                 _log.debug(f'Task ID: [{task["id"]}], No. Attempts: [{task["attempts"]}]')
     _log.info(
-        f'\n------------------------------ Discrete ingestion complete -------------------------------------------\n')
+        f'\n'+stringy.pad_with_minus('Discrete ingestion complete')+'\n')
     cleanup_data = {
         'product_id': ingestion_data['product_id'],
         'product_version': ingestion_data.get('product_version'),
@@ -187,7 +189,8 @@ def count_tiles_amount(product_id, product_version, core):
     :param core: "A" [send] | "B" [received]
     :return: int -> total amount of tiles
     """
-    _log.info('\n\n*********************************** Start tiles count on storage *****************************************')
+    _log.info(
+        '\n\n'+stringy.pad_with_stars('Start tiles count on storage'))
     if core.lower() == "b":
         if config.TILES_PROVIDER_B.lower() == 's3':
             s3_credential = structs.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_B,
@@ -230,7 +233,7 @@ def count_tiles_amount(product_id, product_version, core):
     res = data_manager.count_tiles_on_storage(product_id, product_version)
 
     _log.info(
-        f'\n----------------------------------- End tiles count on storage ------------------------------------------\n')
+        f'\n'+stringy.pad_with_minus('End tiles count on storage')+'\n')
     return res
 
 
@@ -242,7 +245,7 @@ def trigger_orthphoto_history_sync(product_id, product_version):
     :return:
     """
     _log.info(
-        '\n******************************** Start Triggering Sync for ingestion *************************************')
+        '\n'+stringy.pad_with_stars('Start Triggering Sync for ingestion'))
 
     sync_request_body = {
         'resourceId': product_id,
@@ -269,7 +272,7 @@ def trigger_orthphoto_history_sync(product_id, product_version):
     msg = f"status code: [{s_code}] | message: {msg}"
 
     _log.info(
-        f'\n----------------------------------- Finish Triggering Sync -----------------------------------------------')
+        f'\n'+stringy.pad_with_minus('Finish Triggering Sync'))
     return {"state": state, "msg": msg}
 
 
@@ -286,9 +289,9 @@ def creation_job_loop_follower(criteria):
     }
     :return: dict -> {state: bool, message: str, records: list[dict]}
     """
-    end_process_string = '\n------------------------------------------ End Sync receiver loop ------------------------------------------'
+    end_process_string = '\n\n'+stringy.pad_with_minus('End Sync receiver loop')
     _log.info(
-        f'\n*************************************** Start Sync receiver loop ********************************************')
+        f'\n'+stringy.pad_with_stars('Start Sync receiver loop'))
 
     timeout = criteria['timeout']
     product_id = criteria['product_id']
@@ -325,6 +328,8 @@ def creation_job_loop_follower(criteria):
         else:
             _log.info(f'Failed search receive job will try next iteration')
             retry_count += 1
+
+        time.sleep(20)
 
 
 def validate_sync_job_creation(product_id, product_version, job_type, job_manager_url):
@@ -382,7 +387,7 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
     """
 
     _log.info(
-        '\n\n*************************************** Start Follow Sync job **********************************************')
+        '\n\n'+ stringy.pad_with_stars('Start Follow Sync job'))
     _log.debug(f'Parameters for follow sync job:\n'
                f'Product ID: {product_id}\n'
                f'Product version: {product_id}\n'
@@ -409,7 +414,7 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
                 _log.debug(f'Task ID: [{task["id"]}], No. Attempts: [{task["attempts"]}]')
 
     _log.info(
-        f'\n---------------------------------------- Finish Follow Sync ----------------------------------------------')
+        f'\n'+stringy.pad_with_minus('Finish Follow Sync'))
     return res
 
 
@@ -426,7 +431,7 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_url):
     :return: dict -> {state:bool, msg:str}
     """
     _log.info(
-        '\n\n****************************** Get actual tile count on layer spec ***************************************')
+        '\n\n'+stringy.pad_with_stars('Get actual tile count on layer spec'))
     try:
         layer_spec = layer_spec_api.LayerSpec(layer_spec_url)
         status_code, res = layer_spec.get_tiles_count(layer_id=layer_id,
@@ -434,7 +439,7 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_url):
 
         _log.info(f'Request tile count on layer spec\n'
                   f'Status code: {status_code}\n'
-                  f'Tiles count: {res}\n')
+                  f'Tiles count: {res}')
         if status_code != config.ResponseCode.Ok.value:
             res = {'state': False, 'message': f'Failed with error code: {status_code} and error message: [{res}]'}
 
@@ -450,7 +455,7 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_url):
         res = {'state': False, 'message': f'Failed layer spec validation with error: [{str(e)}]', 'tile_count': None}
 
     _log.info(
-        f'\n----------------------------------- Finish layer spec tile count -------------------------------------------')
+        f'\n'+stringy.pad_with_minus('Finish layer spec tile count'))
 
     return res
 
@@ -459,6 +464,7 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
                                job_manager_endpoint_url=config.JOB_MANAGER_ROUTE_CORE_A):
     """
     The method validate core A toc task creation and validate num of tiles
+    :param job_manager_endpoint_url: route url
     :param job_id: id of related job for toc task
     :param expected_tiles_count: original tile amount that was created on ingestion
     :param toc_job_type: The type as represented for toc type task
@@ -469,7 +475,7 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
         "type": toc_job_type
     }
     _log.info(
-        f'\n********************************* Start toc Sync validation ******************************************')
+        f'\n\n'+stringy.pad_with_stars('Start toc Sync validation'))
     _log.info(f'\nPrepare validation of tile count on toc for:\n'
               f'{param}\n'
               f'Expected tiles: {expected_tiles_count}')
@@ -492,7 +498,7 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
               f'message: {result["reason"]}\n')
 
     _log.info(
-        f'\n\n-------------------------------- Finish toc Sync validation -----------------------------------------')
+        f'\n\n'+stringy.pad_with_minus('Finish toc Sync validation'))
     return result
 
 
@@ -519,11 +525,12 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
 #     pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
 
 
-def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_params):
+def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_params, sync_flag=True):
     """
     The method validate computability between metadata written to toc against the actual data on csw's records
     :param metadata: source metadata provided as dict -> {metadata: {...}}
     :param layer_id: id represent the layer [str]
+    :param sync_flag: For sync pycsw validation -> based on toc metadata [bool]
     :param layer_version: version of the layer [str]
     :param pycsw_url: route to csw server
     :param query_params:
@@ -542,20 +549,21 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
     :return: result dict -> {'validation': bool, 'reason':{}}, pycsw_records -> dict, links -> dict
     """
     _log.info(
-        f'\n\n************************* Will run validation of toc metadata vs. pycsw record ***************************')
+        f'\n\n'+stringy.pad_with_stars('Will run validation of toc metadata vs. pycsw record'))
     _log.info(f'Will execute catalog validation (pycsw) with original metadata (toc) with current details:\n'
               f'Catalog url: [{pycsw_url}]\n'
               f'Query param to catalog: [{json.dumps(query_params, indent=4)}]\n'
               f'Metadata: will be presented only for log "debug" level')
+
     _log.debug(f'Metadata from toc: {json.dumps(metadata, indent=4, ensure_ascii=False)}')
     try:
         pycsw_conn = pycsw_validator.PycswHandler(pycsw_url, query_params)
         toc_json = {'metadata': ShapeToJSON().create_metadata_from_toc(metadata['metadata'])}
-        results = pycsw_conn.validate_pycsw(toc_json, layer_id, layer_version)
+        results = pycsw_conn.validate_pycsw(toc_json, layer_id, layer_version, sync_flag=sync_flag)
         res_dict = results['results']
         pycsw_records = results['pycsw_record']
         links = results['links']
-        _log.info(f'')
+
 
     except Exception as e:
         _log.error(f'Failed validation of pycsw with error: [{str(e)}]')
@@ -564,7 +572,7 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
         links = {}
 
     _log.info(
-        f'\n-------------------------- Finish validation of toc metadata vs. pycsw record ----------------------------')
+        f'\n'+stringy.pad_with_minus('Finish validation of toc metadata vs. pycsw record'))
 
     return res_dict, pycsw_records, links
 
@@ -578,7 +586,7 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     :return: result dict -> {'validation': bool, 'reason':{}}, links -> dict
     """
     _log.info(
-        f'\n\n********************** Will run validation of layer mapproxy vs. pycsw record *************************')
+        f'\n\n'+stringy.pad_with_stars('Will run validation of layer mapproxy vs. pycsw record'))
 
     if params['tiles_storage_provide'].lower() == 's3':
         s3_credential = structs.S3Provider(entrypoint_url=params['endpoint_url'],
@@ -594,10 +602,11 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
                                                        nfs_tiles_url=params['nfs_tiles_url'])
 
     res = mapproxy_conn.validate_layer_from_pycsw(pycsw_record, product_id, product_version)
+    _log.info(
+        f'\n' + stringy.pad_with_minus('Finish validation of layer mapproxy vs. pycsw record'))
     return res
 
-    _log.info(
-        f'\n----------------------- Finish validation of layer mapproxy vs. pycsw record ---------------------------')
+
 
 
 # ================================================== cleanup ===========================================================

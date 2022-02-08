@@ -16,6 +16,7 @@ is_logger_init = False
 _log = logging.getLogger('sync_tester.tests.test_receive_sync_core')
 s3_credential = None
 storage_provider = None
+_log.info('Loading tests suite for receive sync services')
 
 
 def test_receive_from_gw():
@@ -28,8 +29,6 @@ def test_receive_from_gw():
                                                              f"related errors:\n" \
                                                              f"at least on of layer params missing: product_id: [{receive_product_id}], " \
                                                              f"product_version: [{receive_product_version}]"
-    _log.info(
-        f'\n=======================================  Sync receiver coreB testing ========================================\n')
 
     # ======================================= Sync-received job task creation ==========================================
 
@@ -210,4 +209,3 @@ if config.DEBUG:
 
     test_receive_from_gw()
 
-_log.info('Loading tests suite for receive sync services')

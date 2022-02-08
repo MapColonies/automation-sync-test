@@ -2,10 +2,11 @@
 
 import os
 from sync_tester.functions import discrete_ingestion_executors
-from mc_automation_tools import common
 
-endpoint_url = os.environ.get('agent_url')
-# endpoint_url = "http://discrete-agent-qa-agent-route-raster.apps.v0h0bdx6.eastus.aroapp.io/"
+endpoint_url = os.environ.get('AGENT_URL')
+if not endpoint_url:
+    print('AGENT_URL environment not provide -> upload cli with provided variable')
+
 menu = f"\nChoose one of the following Option:\n" \
        f"[1] - Get watch status\n" \
        f"[2] - Turn On watch\n" \
@@ -15,13 +16,15 @@ menu = f"\nChoose one of the following Option:\n" \
        f"[0] - Exit"
 
 
-def exit_prog(opt):
+def exit_prog():
+    opt = input('\n[9] -> for menu | exit with any other key: ')
     if opt == "9":
         print(menu)
 
     else:
         print('Will terminate running...')
         exit(0)
+
 
 if __name__ == '__main__':
 
@@ -44,8 +47,7 @@ if __name__ == '__main__':
                 resp = str(e)
 
             print(f'[{resp}]')
-            opt = input('\n[9] -> for menu | exit with any other key: ')
-            exit_prog(opt)
+            exit_prog()
 
         elif choice == "2":
             try:
@@ -54,8 +56,7 @@ if __name__ == '__main__':
                 resp = str(e)
 
             print(f'[{resp}]')
-            opt = input('\n[9] -> for menu | exit with any other key: ')
-            exit_prog(opt)
+            exit_prog()
 
         elif choice == "3":
             try:
@@ -64,8 +65,7 @@ if __name__ == '__main__':
                 resp = str(e)
 
             print(f'[{resp}]')
-            opt = input('\n[9] -> for menu | exit with any other key: ')
-            exit_prog(opt)
+            exit_prog()
 
         elif choice == "4":
             path = input('Insert Layer relative path: ')
@@ -75,8 +75,7 @@ if __name__ == '__main__':
                 resp = str(e)
 
             print(f'[{resp}]')
-            opt = input('\n[9] -> for menu | exit with any other key: ')
-            exit_prog(opt)
+            exit_prog()
 
         elif choice == "5":
             url = input('Please insert new url: ')
@@ -86,8 +85,7 @@ if __name__ == '__main__':
 
         else:
             print(f'Wrong key value was insert [{choice}]')
-            opt = input('\n[9] -> for menu | exit with any other key: ')
-            exit_prog(opt)
+            exit_prog()
 
 
 

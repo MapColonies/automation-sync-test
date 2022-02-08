@@ -114,7 +114,7 @@ NIFI_SYNC_TRIGGER_API_CORE_A = nifi_a.get('nifi_sync_trigger_api', '/synchronize
 NIFI_SYNC_STATUS_API_CORE_A = nifi_a.get('nifi_sync_status_api', '/synchronize/status')
 NIFI_SYNC_FILE_RECEIVED_API_CORE_A = nifi_a.get('nifi_sync_file_recived_api', '/synchronize/fileRecived')
 # ================================================= api's routes =======================================================
-endpoints_routes_a = conf_send_core.get('api_routes')
+endpoints_routes_a = conf_send_core.get('api_routes_a')
 PYCSW_URL_A = endpoints_routes_a.get('pycsw_url', "UNKNOWN")
 PYCSW_GET_RASTER_RECORD_PARAMS_A = endpoints_routes_a.get('pycsw_get_raster_record_params', {})
 JOB_MANAGER_ROUTE_CORE_A = endpoints_routes_a.get('job_manager', 'https://')

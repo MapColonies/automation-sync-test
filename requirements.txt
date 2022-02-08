@@ -7,6 +7,6 @@ shapely
 botocore
 setuptools~=50.3.2
 botocore~=1.19.43
-mc-automation-tools>=0.0.28
+mc-automation-tools>=1.0.34
 mc-discrete-kit>=0.0.19
 pyshp
