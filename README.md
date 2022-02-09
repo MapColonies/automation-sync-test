@@ -22,8 +22,8 @@ This is full tester infrastructures for testing Map Colonies synchronization ser
     1. Local package
     2. Docker
 
-#### *Local* run + deploy:
-#####Environment specification:
+#### *Local* run + deploy: <br />
+##### Environment specification:
 * os: Ubuntu 18.04 or higher
 * python: >=3.6.8
 * GDAL external plugin library installed:
@@ -49,8 +49,8 @@ This is full tester infrastructures for testing Map Colonies synchronization ser
 6. For running Discrete agent CLI -> [cmd prompt] `python sync_tester/watch_cli/watcher.py`
 
 
-#### *Docker* run + deploy:
-#####Environment specification:
+#### *Docker* run + deploy: <br />
+##### Environment specification:
 * os: Ubuntu 18.04 or higher
 * Docker installed
 
