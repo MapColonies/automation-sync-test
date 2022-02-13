@@ -10,7 +10,7 @@ case $PYTEST_RUNNING_MODE in
 
   e2e)
     echo -ne " ***** Will Run End - To - End test |Azure Core A to Core B| ***** \n"
-    pytest --show-capture=no /source_code/sync_tester/tests/test_trigger_sync_core.py
+    pytest --show-capture=no /source_code/sync_tester/tests/test_sync_e2e_azure.py
     ;;
 
   e2e_sender)
