@@ -76,3 +76,4 @@ This is full tester infrastructures for testing Map Colonies synchronization ser
 ##### The project repo include skeleton of the configuration with fields to fill in
 * If running Full core A to core B you must fill all keys on json
 * For only core A or Core B fill just the relevant keys
+* The repo include sample skeleton for config.json named "config_sample.json"

@@ -1,0 +1,145 @@
+{
+  "environment": {
+    "name": "QA",
+    "manual_sync": false,
+    "sync_type": "coreA",
+    "core_target": "target2",
+    "debug": true,
+    "access_db": false,
+    "debug_log": false,
+    "log_to_file": false,
+    "log_output_path": "/opt/logs",
+    "storage": "S3",
+    "storage_adapter": "NFS",
+    "storage_tiles": "S3",
+    "tiles_relative_path": "tiles"
+  },
+  "job_manger_enum": {
+    "discrete_tiling": "Discrete-Tiling",
+    "sync_trigger": "SYNC_TRIGGER",
+    "toc_sync": "tocSync",
+    "sync_target": "syncTarget",
+    "tile_loading": "tileLoading"
+  },
+  "send_core": {
+    "tiles_provider": "s3",
+    "source_data_provider": "pv",
+    "manuel_sync": true,
+    "sync_timeout": 600,
+    "nifi_credentials_a": {
+      "trigger_nifi": "http://",
+      "nifi_sync_trigger_api": "/synchronize/trigger",
+      "nifi_sync_status_api": "/synchronize/status'",
+      "nifi_sync_file_recived_api": "/synchronize/fileRecived"
+    },
+    "pg_credential": {
+      "pg_endpoint_url": "ip of endpoint",
+      "pg_port": 5432,
+      "pg_user": "str",
+      "pg_pass": "str",
+      "pg_job_task_db": "raster-job-manager-qa",
+      "pg_pycsw_record_db": "raster-catalog-manager-qa",
+      "pg_mapproxy_db": "raster-mapproxy-config-qa",
+      "pg_agent_db": "raster-discrete-agent-db-qa"
+    },
+    "s3_credential": {
+      "s3_endpoint_url": "http://",
+      "s3_access_key": "str",
+      "s3_secret_key": "str",
+      "s3_bucket_name": "raster"
+    },
+    "discrete_ingestion_credential": {
+      "agent_url": "http://",
+      "nfs_tiles_dir": "/tmp",
+      "pvc_handler_url": "https://",
+      "discrete_raw_root_dir": "/layerSources/",
+      "discrete_raw_src_dir": "ingestion/1",
+      "discrete_raw_dst_dir": "ingestion/2",
+      "nfs_raw_root_dir": "/tmp/",
+      "nfs_raw_src_dir": "ingestion/1",
+      "nfs_raw_dst_dir": "ingestion/2",
+      "change_max_zoom_level": true,
+      "max_zoom_level": 4,
+      "failure_tag": false,
+      "mapproxy_grid_origin": "ul",
+      "ingestion_timeout": 600,
+      "buffer_timeout": 70
+    },
+    "api_routes_a": {
+      "job_manager": "https://",
+      "layer_spec": "https://",
+      "pycsw_url": "http://",
+      "pycsw_get_raster_record_params": {
+        "service": "CSW",
+        "version": "2.0.2",
+        "request": "GetRecords",
+        "typenames": "mc:MCRasterRecord",
+        "ElementSetName": "full",
+        "resultType": "results",
+        "outputSchema": "http://schema.mapcolonies.com/raster"
+      },
+      "mapproxy_url": ""
+    }
+  },
+  "receive_core": {
+    "product_id": "str",
+    "product_version": "str -> <digit.digit>",
+    "except_sync_job_timeout": 600,
+    "sync_timeout": 300,
+    "tiles_provider": "S3",
+    "raw_data_location": "",
+    "api_routes_b": {
+      "trigger_nifi": "http://",
+      "job_manager": "https://",
+      "layer_spec": "https://",
+      "nifi_sync_trigger_api": "/synchronize/trigger",
+      "nifi_sync_status_api": "/synchronize/status'",
+      "nifi_sync_file_recived_api": "/synchronize/fileRecived",
+      "mapproxy_url": "http://"
+    },
+    "pg_credential_b": {
+      "pg_endpoint_url": "ip of endpoint",
+      "pg_user": "str",
+      "pg_pass": "str",
+      "pg_job_task_db": "raster-job-manager-qa-sync",
+      "pg_pycsw_record_db": "raster-catalog-qa-sync",
+      "pg_mapproxy_db": "raster-mapproxy-config-qa-sync",
+      "pg_agent_db": "raster-discrete-agent-db-qa-sync"
+    },
+    "s3_credential_b": {
+      "s3_endpoint_url": "http://",
+      "s3_access_key": "str",
+      "s3_secret_key": "str",
+      "s3_bucket_name": "raster-tiles-qa-sync"
+    },
+    "discrete_ingestion_credential_b": {
+      "nfs_tiles_dir": "/tmp",
+      "mapproxy_grid_origin": "newGrid",
+      "buffer_timeout": 70,
+      "ingestion_timeout": 300,
+            "change_max_zoom_level": true,
+      "max_zoom_level": 4,
+      "failure_tag": false,
+      "pvc_handler_url": "https://",
+      "agent_url": "http://",
+      "pycsw_url": "http://",
+      "pycsw_get_raster_record_params": {
+        "service": "CSW",
+        "version": "2.0.2",
+        "request": "GetRecords",
+        "typenames": "mc:MCRasterRecord",
+        "ElementSetName": "full",
+        "resultType": "results",
+        "outputSchema": "http://schema.mapcolonies.com/raster"
+      },
+      "discrete_raw_root_dir": "/layerSources/",
+      "discrete_raw_src_dir": "ingestion/1",
+      "discrete_raw_dst_dir": "ingestion/2",
+      "nfs_raw_root_dir": "/tmp/",
+      "nfs_raw_src_dir": "ingestion/1",
+      "nfs_raw_dst_dir": "ingestion/2"
+
+
+    }
+  }
+}
