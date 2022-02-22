@@ -26,23 +26,37 @@ def run_ingestion():
     This is preprocess that will run and create new unique layer to process sync step over
     :return: dict -> {product_id:str, product_version:str}
     """
-    if config.DB_ACCESS:
-        pg_credential = config.PGProvider(entrypoint_url=config.PG_ENDPOINT_URL_CORE_A,
-                                          port=config.PG_PORT_A,
-                                          pg_user=config.PG_USER_CORE_A,
-                                          pg_pass=config.PG_PASS_CORE_A,
-                                          pg_job_task_db=config.PG_JOB_TASK_DB_CORE_A,
-                                          pg_pycsw_record_db=config.PG_PYCSW_RECORD_DB_CORE_A,
-                                          pg_mapproxy_db=config.PG_MAPPROXY_DB_CORE_A,
-                                          pg_agent_db=config.PG_AGENT_DB_CORE_A)
+    # if config.DB_ACCESS:
+    #     res_mapproxy_config = get_mapproxy_configuration({"entrypoint_url": config.PG_ENDPOINT_URL_CORE_A,
+    #                                                       "port": config.PG_PORT_A,
+    #                                                       "pg_user": config.PG_USER_CORE_A,
+    #                                                       "pg_pass": config.PG_PASS_CORE_A,
+    #                                                       "pg_job_task_db": config.PG_JOB_TASK_DB_CORE_A,
+    #                                                       "pg_pycsw_db": config.PG_PYCSW_RECORD_DB_CORE_A,
+    #                                                       "pg_mapproxy_db": config.PG_MAPPROXY_DB_CORE_A,
+    #                                                       "pg_agent_db": config.PG_AGENT_DB_CORE_A
+    #                                                       })
+    #     mapproxy_last_id = res_mapproxy_config['last_id']
+    #     mapproxy_length = res_mapproxy_config['length']
+    #
+    #     # legacy code -> remove after two test iteration + deployment
+    #     # pg_credential = config.PGProvider(entrypoint_url=config.PG_ENDPOINT_URL_CORE_A,
+    #     #                                   port=config.PG_PORT_A,
+    #     #                                   pg_user=config.PG_USER_CORE_A,
+    #     #                                   pg_pass=config.PG_PASS_CORE_A,
+    #     #                                   pg_job_task_db=config.PG_JOB_TASK_DB_CORE_A,
+    #     #                                   pg_pycsw_record_db=config.PG_PYCSW_RECORD_DB_CORE_A,
+    #     #                                   pg_mapproxy_db=config.PG_MAPPROXY_DB_CORE_A,
+    #     #                                   pg_agent_db=config.PG_AGENT_DB_CORE_A)
+    #     #
+    #     # pg_handler = postgres_adapter.PostgresHandler(pg_credential)
+    #     # initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
+    #     # mapproxy_last_id = initial_mapproxy_configs[0]['id']
+    #     # mapproxy_length = len(initial_mapproxy_configs)
+    # else:
+    #     mapproxy_last_id = None
+    #     mapproxy_length = None
 
-        pg_handler = postgres_adapter.PostgresHandler(pg_credential)
-        initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
-        mapproxy_last_id = initial_mapproxy_configs[0]['id']
-        mapproxy_length = len(initial_mapproxy_configs)
-    else:
-        mapproxy_last_id = None
-        mapproxy_length = None
     ingestion_data = {}
     stringy.pad_with_stars('Start preparing for ingestion')
     _log.info(
@@ -54,7 +68,7 @@ def run_ingestion():
         entrypoint_url=config.DISCRETE_AGENT_CORE_A,
         source_data_provider=config.SOURCE_DATA_PROVIDER_A)
 
-    watch_status = discrete_agent_adapter.stop_agent_watch()  # validate not agent not watching for ingestion
+    watch_status = discrete_agent_adapter.stop_agent_watch()  # validate - agent not watching for ingestion
     if not watch_status['state']:
         raise Exception('Failed on stop agent watch')
     _log.info(f'Stop agent watch: [message from service: {watch_status["reason"]}]')
@@ -123,7 +137,7 @@ def run_ingestion():
 
     # ============================================== Run ingestion =====================================================
     _log.info(
-        '\n'+stringy.pad_with_stars('Start Discrete ingestion'))
+        '\n' + stringy.pad_with_stars('Start Discrete ingestion'))
     _log.info(f'Run data validation on source data')
     state, json_data = data_manager.validate_source_directory()
     if not state:
@@ -153,12 +167,12 @@ def run_ingestion():
             if task['attempts'] > 0:
                 _log.debug(f'Task ID: [{task["id"]}], No. Attempts: [{task["attempts"]}]')
     _log.info(
-        f'\n'+stringy.pad_with_minus('Discrete ingestion complete')+'\n')
+        f'\n' + stringy.pad_with_minus('Discrete ingestion complete') + '\n')
     cleanup_data = {
         'product_id': ingestion_data['product_id'],
         'product_version': ingestion_data.get('product_version'),
-        "mapproxy_last_id": mapproxy_last_id,
-        "mapproxy_length": mapproxy_length,
+        # "mapproxy_last_id": mapproxy_last_id,
+        # "mapproxy_length": mapproxy_length,
         "folder_to_delete": os.path.join(config.DISCRETE_RAW_ROOT_DIR_CORE_A, config.DISCRETE_RAW_DST_DIR_CORE_A),
         "tiles_folder_to_delete": "tiles",
         "watch_status": False,
@@ -181,6 +195,38 @@ def run_ingestion():
             'message': msg}
 
 
+def get_mapproxy_configuration(pg_params):
+    """
+    This method will return mapproxy configuration current details:
+    :param pg_params: [dict] include db params -> {"entrypoint_url":[str] endpoint of pg server,
+                                                 "port": [str] port number for server endpoint,
+                                                 "pg_user": [str] credential for pg user name,
+                                                 "pg_pass": [str] credential password for pg,
+                                                 "pg_job_task_db": [str] table name for job tasks,
+                                                 "pg_pycsw_db": [str] table name for pycsw records,
+                                                 "pg_mapproxy_db": [str] table name for mapproxy configs,
+                                                 "pg_agent_db": [str] table name for agent db
+                                                }
+    :return: [dict]
+            'last id' -> the last id index of configs on mapproxy db
+            'length' ->  the number of configs rows on mapproxy db
+    """
+    pg_credential = config.PGProvider(entrypoint_url=pg_params['entrypoint_url'],
+                                      port=pg_params['port'],
+                                      pg_user=pg_params['pg_user'],
+                                      pg_pass=pg_params['pg_pass'],
+                                      pg_job_task_db=pg_params['pg_job_task_db'],
+                                      pg_pycsw_record_db=pg_params['pg_pycsw_db'],
+                                      pg_mapproxy_db=pg_params['pg_mapproxy_db'],
+                                      pg_agent_db=pg_params['pg_agent_db'])
+
+    pg_handler = postgres_adapter.PostgresHandler(pg_credential)
+    initial_mapproxy_configs = pg_handler.get_mapproxy_configs()
+    mapproxy_last_id = initial_mapproxy_configs[0]['id']
+    mapproxy_length = len(initial_mapproxy_configs)
+    return {'last_id': mapproxy_last_id, 'length': mapproxy_length}
+
+
 def count_tiles_amount(product_id, product_version, core):
     """
     This method counting actual amount transferred and exists on storage
@@ -190,7 +236,7 @@ def count_tiles_amount(product_id, product_version, core):
     :return: int -> total amount of tiles
     """
     _log.info(
-        '\n\n'+stringy.pad_with_stars('Start tiles count on storage'))
+        '\n\n' + stringy.pad_with_stars('Start tiles count on storage'))
     if core.lower() == "b":
         if config.TILES_PROVIDER_B.lower() == 's3':
             s3_credential = structs.S3Provider(entrypoint_url=config.S3_ENDPOINT_URL_CORE_B,
@@ -233,7 +279,7 @@ def count_tiles_amount(product_id, product_version, core):
     res = data_manager.count_tiles_on_storage(product_id, product_version)
 
     _log.info(
-        f'\n'+stringy.pad_with_minus('End tiles count on storage')+'\n')
+        f'\n' + stringy.pad_with_minus('End tiles count on storage') + '\n')
     return res
 
 
@@ -245,7 +291,7 @@ def trigger_orthphoto_history_sync(product_id, product_version):
     :return:
     """
     _log.info(
-        '\n'+stringy.pad_with_stars('Start Triggering Sync for ingestion'))
+        '\n' + stringy.pad_with_stars('Start Triggering Sync for ingestion'))
 
     sync_request_body = {
         'resourceId': product_id,
@@ -272,7 +318,7 @@ def trigger_orthphoto_history_sync(product_id, product_version):
     msg = f"status code: [{s_code}] | message: {msg}"
 
     _log.info(
-        f'\n'+stringy.pad_with_minus('Finish Triggering Sync'))
+        f'\n' + stringy.pad_with_minus('Finish Triggering Sync'))
     return {"state": state, "msg": msg}
 
 
@@ -289,9 +335,9 @@ def creation_job_loop_follower(criteria):
     }
     :return: dict -> {state: bool, message: str, records: list[dict]}
     """
-    end_process_string = '\n\n'+stringy.pad_with_minus('End Sync receiver loop')
+    end_process_string = '\n\n' + stringy.pad_with_minus('End Sync receiver loop')
     _log.info(
-        f'\n'+stringy.pad_with_stars('Start Sync receiver loop'))
+        f'\n' + stringy.pad_with_stars('Start Sync receiver loop'))
 
     timeout = criteria['timeout']
     product_id = criteria['product_id']
@@ -387,7 +433,7 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
     """
 
     _log.info(
-        '\n\n'+ stringy.pad_with_stars('Start Follow Sync job'))
+        '\n\n' + stringy.pad_with_stars('Start Follow Sync job'))
     _log.debug(f'Parameters for follow sync job:\n'
                f'Product ID: {product_id}\n'
                f'Product version: {product_id}\n'
@@ -414,7 +460,7 @@ def follow_sync_job(product_id, product_version, product_type, job_manager_url, 
                 _log.debug(f'Task ID: [{task["id"]}], No. Attempts: [{task["attempts"]}]')
 
     _log.info(
-        f'\n'+stringy.pad_with_minus('Finish Follow Sync'))
+        f'\n' + stringy.pad_with_minus('Finish Follow Sync'))
     return res
 
 
@@ -431,7 +477,7 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_url):
     :return: dict -> {state:bool, msg:str}
     """
     _log.info(
-        '\n\n'+stringy.pad_with_stars('Get actual tile count on layer spec'))
+        '\n\n' + stringy.pad_with_stars('Get actual tile count on layer spec'))
     try:
         layer_spec = layer_spec_api.LayerSpec(layer_spec_url)
         status_code, res = layer_spec.get_tiles_count(layer_id=layer_id,
@@ -455,7 +501,7 @@ def get_layer_spec_tile_count(layer_id, target, layer_spec_url):
         res = {'state': False, 'message': f'Failed layer spec validation with error: [{str(e)}]', 'tile_count': None}
 
     _log.info(
-        f'\n'+stringy.pad_with_minus('Finish layer spec tile count'))
+        f'\n' + stringy.pad_with_minus('Finish layer spec tile count'))
 
     return res
 
@@ -475,7 +521,7 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
         "type": toc_job_type
     }
     _log.info(
-        f'\n\n'+stringy.pad_with_stars('Start toc Sync validation'))
+        f'\n\n' + stringy.pad_with_stars('Start toc Sync validation'))
     _log.info(f'\nPrepare validation of tile count on toc for:\n'
               f'{param}\n'
               f'Expected tiles: {expected_tiles_count}')
@@ -498,7 +544,7 @@ def validate_toc_task_creation(job_id, expected_tiles_count, toc_job_type=config
               f'message: {result["reason"]}\n')
 
     _log.info(
-        f'\n\n'+stringy.pad_with_minus('Finish toc Sync validation'))
+        f'\n\n' + stringy.pad_with_minus('Finish toc Sync validation'))
     return result
 
 
@@ -549,7 +595,7 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
     :return: result dict -> {'validation': bool, 'reason':{}}, pycsw_records -> dict, links -> dict
     """
     _log.info(
-        f'\n\n'+stringy.pad_with_stars('Will run validation of toc metadata vs. pycsw record'))
+        f'\n\n' + stringy.pad_with_stars('Will run validation of toc metadata vs. pycsw record'))
     _log.info(f'Will execute catalog validation (pycsw) with original metadata (toc) with current details:\n'
               f'Catalog url: [{pycsw_url}]\n'
               f'Query param to catalog: [{json.dumps(query_params, indent=4)}]\n'
@@ -572,7 +618,7 @@ def validate_metadata_pycsw(metadata, layer_id, layer_version, pycsw_url, query_
         links = {}
 
     _log.info(
-        f'\n'+stringy.pad_with_minus('Finish validation of toc metadata vs. pycsw record'))
+        f'\n' + stringy.pad_with_minus('Finish validation of toc metadata vs. pycsw record'))
 
     return res_dict, pycsw_records, links
 
@@ -586,7 +632,7 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     :return: result dict -> {'validation': bool, 'reason':{}}, links -> dict
     """
     _log.info(
-        f'\n\n'+stringy.pad_with_stars('Will run validation of layer mapproxy vs. pycsw record'))
+        f'\n\n' + stringy.pad_with_stars('Will run validation of layer mapproxy vs. pycsw record'))
 
     if params['tiles_storage_provide'].lower() == 's3':
         s3_credential = structs.S3Provider(entrypoint_url=params['endpoint_url'],
@@ -605,8 +651,6 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     _log.info(
         f'\n' + stringy.pad_with_minus('Finish validation of layer mapproxy vs. pycsw record'))
     return res
-
-
 
 
 # ================================================== cleanup ===========================================================

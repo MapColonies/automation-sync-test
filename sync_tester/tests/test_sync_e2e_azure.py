@@ -20,6 +20,25 @@ def test_full_ingestion():
     """This test validate core's process of trigger and send sync data out of core"""
 
     # ======================== prepare data (step 1) -> ingestion some discrete to core ================================
+    mapproxy_last_id = None
+    mapproxy_length = None
+    core_a_cleanup = {"core_name": "A",
+                      "tile_provider": config.TILES_PROVIDER_A,
+                      "tiles_path": config.NFS_TILES_DIR_A,
+                      }
+    if config.DB_ACCESS:  # check mapproxy init config
+        res_mapproxy_config = executors.get_mapproxy_configuration({"entrypoint_url": config.PG_ENDPOINT_URL_CORE_A,
+                                                                    "port": config.PG_PORT_A,
+                                                                    "pg_user": config.PG_USER_CORE_A,
+                                                                    "pg_pass": config.PG_PASS_CORE_A,
+                                                                    "pg_job_task_db": config.PG_JOB_TASK_DB_CORE_A,
+                                                                    "pg_pycsw_db": config.PG_PYCSW_RECORD_DB_CORE_A,
+                                                                    "pg_mapproxy_db": config.PG_MAPPROXY_DB_CORE_A,
+                                                                    "pg_agent_db": config.PG_AGENT_DB_CORE_A
+                                                                    })
+        mapproxy_last_id = res_mapproxy_config['last_id']
+        mapproxy_length = res_mapproxy_config['length']
+    core_a_cleanup['']
     _log.info(f'Start preprocess of sync A -> ingest of new discrete')
     try:
         ingest_res = executors.run_ingestion()
@@ -269,6 +288,8 @@ def test_full_ingestion():
     assert mapproxy_validation_state, f'Test: [{test_full_ingestion.__name__}] Failed: Validation of mapproxy urls\n' \
                                       f'related errors:\n' \
                                       f'{msg}'
+
+
 def setup_module(module):
     """
     base init of running tests
