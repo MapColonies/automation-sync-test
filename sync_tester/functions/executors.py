@@ -4,8 +4,10 @@ This module implement flow execution and multiple complex flow with main infrast
 import json
 import logging
 import os
+import glob
 import time
 from discrete_kit.functions.shape_functions import ShapeToJSON
+from mc_automation_tools.sync_api.gw_file_receiver import FileReceiver
 
 from sync_tester.configuration import config
 from sync_tester.nifi_sync_api import nifi_sync
@@ -16,6 +18,7 @@ from mc_automation_tools.ingestion_api import job_manager_api
 from mc_automation_tools.parse import stringy
 from mc_automation_tools.sync_api import layer_spec_api
 from mc_automation_tools.models import structs
+from mc_automation_tools import common
 from conftest import ValueStorage
 
 _log = logging.getLogger('sync_tester.functions.executors')
@@ -651,6 +654,83 @@ def validate_mapproxy_layer(pycsw_record, product_id, product_version, params=No
     _log.info(
         f'\n' + stringy.pad_with_minus('Finish validation of layer mapproxy vs. pycsw record'))
     return res
+
+
+def create_new_receive_source(source, destination=None):
+    """
+    This method generate new duplication of source folder with unique product ID
+    :param source: source directory of layer's
+    :param destination: if exists -> will copy to specified, else will duplicate to same root
+    :return:
+    """
+    _log.info(stringy.pad_with_stars('Start generate tiles raw data for sync'))
+    if not os.path.exists(source):
+        raise FileNotFoundError(f'Source directory not exists: {source}')
+    _log.info(f'Will duplicate source data tiles to new directory and generate new product ID')
+    if destination:
+        dst_directory = destination
+
+    else:
+        new_layer_name = "_".join(["test_receive", common.generate_datatime_zulu().replace('-', '_').replace(':', '_')])
+        dst_directory = os.path.join(os.path.dirname(source), new_layer_name)
+
+    try:
+        _log.info(f'Start copy data for sync on receive core from [{source}] to [{dst_directory}]')
+        command = f'cp -r {source}/. {dst_directory}'
+        os.system(command)
+        if os.path.exists(dst_directory):
+            _log.info(f'Success copy and creation of test data on: {dst_directory}')
+        else:
+            raise IOError('Failed on creating sync receive upload data directory')
+
+    except Exception as e2:
+        _log.error(f'Failed copy files from {source} into {dst_directory} with error: [{str(e2)}]')
+        raise e2
+
+    toc_file = [f for f in glob.glob(f'{dst_directory}/**/*.json', recursive=True)][0]
+
+    with open(toc_file, "r+") as fp:
+        data = json.load(fp)
+        data['metadata']['productId'] = new_layer_name
+        fp.seek(0)  # <--- should reset file position to the beginning.
+        json.dump(data, fp, indent=4, ensure_ascii=False)
+        fp.truncate()
+
+    return {"layer_name": new_layer_name, "layer_destination": dst_directory}
+
+
+def create_receive_sync(tiles_root_dir, product_id, image_format='png', file_receive_api=config.FILE_RECEIVER_API_B):
+    """
+    This method receive root directory to tiles to be sync + toc json file
+    :param tiles_root_dir: root dir should be full path till the tiles directory ->
+        <full/path/to/tiles>/product_id/product_version/product_type/<z/x/y.png>
+    :param product_id: name of layer to be synced
+    :param image_format: tiles format on storage - default 'png'
+    :param file_receive_api: GW file receiver url
+    :return: dict -> results states
+    """
+    fr = FileReceiver(file_receive_api)
+    layer_path = os.path.join(tiles_root_dir, product_id)
+    if not os.path.exists(layer_path):
+        raise FileNotFoundError(f'Missing source directory: {layer_path}')
+    if not len(os.listdir(layer_path)):
+        raise Exception(f'Test dir is empty: {layer_path}')
+
+    tiles_path_list = [f for f in glob.glob(f'{layer_path}/**/*.{image_format}', recursive=True)]
+    toc_file = [f for f in glob.glob(f'{layer_path}/**/*.json', recursive=True)][0]
+
+    # upload tiles:
+    for tile in tiles_path_list:
+        tile_name = tile.split(tiles_root_dir+'/')[1]
+        resp = fr.send_to_file_receiver(tile_name, open(tile, "rb").read())
+
+    # upload toc:
+    toc = json.load(open(toc_file))
+    toc_name = toc_file.split(tiles_root_dir + '/')[1]
+    resp = fr.send_to_file_receiver(toc_name, open(toc_file, 'rb').read())
+
+    # todo -> add logs traffic process
+
 
 
 # ================================================== cleanup ===========================================================
