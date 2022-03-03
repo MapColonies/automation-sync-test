@@ -38,7 +38,7 @@ def test_full_ingestion():
                                                                     })
         mapproxy_last_id = res_mapproxy_config['last_id']
         mapproxy_length = res_mapproxy_config['length']
-    core_a_cleanup['']
+    # core_a_cleanup['']
     _log.info(f'Start preprocess of sync A -> ingest of new discrete')
     try:
         ingest_res = executors.run_ingestion()

@@ -19,10 +19,10 @@ storage_provider = None
 _log.info('Loading tests suite for receive sync services')
 
 
-def test_receive_from_gw():
+def test_receive_from_gw(receive_product_id=config.PRODUCT_ID_B, receive_product_version=config.PRODUCT_VERSION_B):
     """This test validate core's process of receive tiles and generate layer on core"""
-    receive_product_id = config.PRODUCT_ID_B
-    receive_product_version = config.PRODUCT_VERSION_B
+    # receive_product_id = config.PRODUCT_ID_B
+    # receive_product_version = config.PRODUCT_VERSION_B
     assert (
             receive_product_id and receive_product_version), f"Test: [{test_receive_from_gw.__name__}] Failed: Validation layer " \
                                                              f"details\n" \

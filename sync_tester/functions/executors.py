@@ -663,10 +663,14 @@ def create_new_receive_source(source, destination=None):
     :param destination: if exists -> will copy to specified, else will duplicate to same root
     :return:
     """
-    _log.info(stringy.pad_with_stars('Start generate tiles raw data for sync'))
+    _log.info('\n\n' + stringy.pad_with_stars('Start generate tiles raw data for sync'))
+
     if not os.path.exists(source):
-        raise FileNotFoundError(f'Source directory not exists: {source}')
-    _log.info(f'Will duplicate source data tiles to new directory and generate new product ID')
+        _log.error(f'Source directory not exists: {source}')
+        return {'state': False, 'reason': f'Source directory not exists: {source}'}
+        # raise FileNotFoundError(f'Source directory not exists: {source}')
+
+    _log.info(f'Will copy source data tiles to new directory and generate new product ID')
     if destination:
         dst_directory = destination
 
@@ -675,28 +679,53 @@ def create_new_receive_source(source, destination=None):
         dst_directory = os.path.join(os.path.dirname(source), new_layer_name)
 
     try:
-        _log.info(f'Start copy data for sync on receive core from [{source}] to [{dst_directory}]')
+        _log.info(f'Start copy data for sync on receive core\n'
+                  f'From: [{source}]\n'
+                  f'To: [{dst_directory}]')
         command = f'cp -r {source}/. {dst_directory}'
         os.system(command)
         if os.path.exists(dst_directory):
             _log.info(f'Success copy and creation of test data on: {dst_directory}')
         else:
-            raise IOError('Failed on creating sync receive upload data directory')
+            _log.error(f'Failed on creating sync receive upload data directory into: {dst_directory}')
+            return {'state': False,
+                    'reason': f'Failed on creating sync receive upload data directory into: {dst_directory}'}
+            # raise IOError('Failed on creating sync receive upload data directory')
 
-    except Exception as e2:
-        _log.error(f'Failed copy files from {source} into {dst_directory} with error: [{str(e2)}]')
-        raise e2
+    except Exception as e:
+        _log.error(f'Failed copy files from {source} into {dst_directory} with error: [{str(e)}]')
+        # raise e
+        return {'state': False,
+                'reason': f'Failed copy files from {source} into {dst_directory} with error: [{str(e)}]'}
 
-    toc_file = [f for f in glob.glob(f'{dst_directory}/**/*.json', recursive=True)][0]
+    toc_file = [f for f in glob.glob(f'{dst_directory}/**/*.json', recursive=True)]
+    if not toc_file:
+        _log.error(f'{dst_directory} not include toc json file')
+        return {'state': False, 'reason': f'{dst_directory} not include toc json file'}
 
-    with open(toc_file, "r+") as fp:
-        data = json.load(fp)
-        data['metadata']['productId'] = new_layer_name
-        fp.seek(0)  # <--- should reset file position to the beginning.
-        json.dump(data, fp, indent=4, ensure_ascii=False)
-        fp.truncate()
+    toc_file = toc_file[0]
 
-    return {"layer_name": new_layer_name, "layer_destination": dst_directory}
+    try:
+        with open(toc_file, "r+") as fp:
+            data = json.load(fp)
+            data['metadata']['productId'] = new_layer_name
+            fp.seek(0)  # <--- should reset file position to the beginning.
+            json.dump(data, fp, indent=4, ensure_ascii=False)
+            fp.truncate()
+
+    except IOError as e:
+        _log.error(f'Failed update ID for toc file with error [{str(e)}]')
+        return {'state': False, 'reason': f'Failed update ID for toc file with error [{str(e)}]'}
+
+    _log.debug(f'Toc file for current running is:\n'
+               f'{json.dumps(json.load(open(toc_file, "r+")), indent=4)}')
+    _log.info(f'New data for trigger receive sync:\n'
+              f'Layer name: [{new_layer_name}]\n'
+              f'Tiles location: [{dst_directory}]\n'
+              f'Toc data: To see data configure run mode log to debug!')
+    _log.info('\n' + stringy.pad_with_minus(f'Finish generating new sync data'))
+    return {"state": True, "reason": {"layer_id": new_layer_name, "layer_version": data['metadata']['productVersion'],
+                                      "layer_destination": dst_directory}}
 
 
 def create_receive_sync(tiles_root_dir, product_id, image_format='png', file_receive_api=config.FILE_RECEIVER_API_B):
@@ -709,28 +738,82 @@ def create_receive_sync(tiles_root_dir, product_id, image_format='png', file_rec
     :param file_receive_api: GW file receiver url
     :return: dict -> results states
     """
+    _log.info('\n\n' + stringy.pad_with_stars('Start upload files to gw file receiver'))
     fr = FileReceiver(file_receive_api)
+    _log.info(f'Connection executed to gw file receiver route: {file_receive_api}')
     layer_path = os.path.join(tiles_root_dir, product_id)
+    _log.info(f'Load layer from: [{layer_path}]')
+
     if not os.path.exists(layer_path):
-        raise FileNotFoundError(f'Missing source directory: {layer_path}')
+        _log.error(f'Missing source directory: {layer_path}')
+        return {'state': False, 'failures': f'Missing source directory: {layer_path}'}
+        # raise FileNotFoundError(f'Missing source directory: {layer_path}')
+
     if not len(os.listdir(layer_path)):
-        raise Exception(f'Test dir is empty: {layer_path}')
+        # raise Exception(f'Test dir is empty: {layer_path}')
+        _log.error(f'Test dir is empty: {layer_path}')
+        return {'state': False, 'failures': f'Test dir is empty: {layer_path}'}
 
     tiles_path_list = [f for f in glob.glob(f'{layer_path}/**/*.{image_format}', recursive=True)]
     toc_file = [f for f in glob.glob(f'{layer_path}/**/*.json', recursive=True)][0]
+    _log.info(f'Data to be triggered to gw file receiver:\n'
+              f'Num of tiles to be uploaded: {len(tiles_path_list)}\n'
+              f'1 toc File json')
 
     # upload tiles:
-    for tile in tiles_path_list:
-        tile_name = tile.split(tiles_root_dir+'/')[1]
-        resp = fr.send_to_file_receiver(tile_name, open(tile, "rb").read())
+    failure_dict = {}
+    success_upload = []
+    _log.info(f'Start upload tiles by gw receiver')
+    try:
+        for idx, tile in enumerate(tiles_path_list):
+            tile_name = tile.split(tiles_root_dir + '/')[1]
+            status_code, content_dict = fr.send_to_file_receiver(tile_name, open(tile, "rb").read())
+            if status_code != structs.ResponseCode.Ok.value:
+                failure_dict[tile] = content_dict
+                _log.error(f'failed upload to gw file receiver tile: [{tile}] {idx + 1}/{len(tiles_path_list)}')
+
+            _log.info(f'Success upload to gw file receiver tile: [{tile}] {idx + 1}/{len(tiles_path_list)}')
+            success_upload.append(tile)
+
+    except Exception as e:
+        _log.error(f'Failed on uploading: {tile}, with error: {str(e)}')
+        return {'state': False, 'failures': f'Failed on uploading: {tile}, with error: {str(e)}'}
+        # raise Exception(f'Failed on uploading: {tile}, with error: {str(e)}')
+
+    _log.info(f'Finish Upload - Tiles upload state:\n'
+              f'Total tiles: {len(tiles_path_list)}\n'
+              f'Success uploaded tiles: {len(success_upload)}\n'
+              f'Failed uploaded tiles: {len(failure_dict.items())}')
+
+    _log.debug(f'Failure tiles list:\n'
+               f'{json.dumps(failure_dict, indent=4)}')
 
     # upload toc:
-    toc = json.load(open(toc_file))
-    toc_name = toc_file.split(tiles_root_dir + '/')[1]
-    resp = fr.send_to_file_receiver(toc_name, open(toc_file, 'rb').read())
+    _log.info(f'Start upload toc file to gw receiver')
+    try:
+        toc = json.load(open(toc_file))
+        _log.debug(f'toc loaded data:\n'
+                   f'{json.dumps(toc, indent=4)}')
 
-    # todo -> add logs traffic process
+        toc_name = toc_file.split(tiles_root_dir + '/')[1]
+        status_code, content_dict = fr.send_to_file_receiver(toc_name, open(toc_file, 'rb').read())
+        if status_code != structs.ResponseCode.Ok.value:
+            failure_dict[toc_file] = content_dict
+            _log.error(f'failed upload to gw file receiver toc file with error:\n'
+                       f'{content_dict}')
+        else:
+            _log.info(f'Success upload to gw file receiver TOC: [{toc_file}]')
+            success_upload.append(toc_file)
 
+    except Exception as e:
+        _log.error(f'Failed on uploading: {toc_file}, with error: {str(e)}')
+        return {'state': False, 'failures': f'Failed on uploading: {toc_file}, with error: {str(e)}'}
+        # raise Exception(f'Failed on uploading: {toc_file}, with error: {str(e)}')
+
+    state = True if len(failure_dict) == 0 else False
+    result_summary = {'state': state, 'failures': failure_dict}
+    _log.info("\n" + stringy.pad_with_minus('Finish upload to gw file receiver process'))
+    return result_summary
 
 
 # ================================================== cleanup ===========================================================

@@ -14,14 +14,19 @@ case $PYTEST_RUNNING_MODE in
     ;;
 
   e2e_sender)
-    echo -dockene " ***** Will Run End - To - End test |only sender core| ***** \n"
+    echo -ne " ***** Will Run End - To - End test |only sender core| ***** \n"
     pytest --show-capture=no /source_code/sync_tester/tests/test_trigger_sync_core.py
     ;;
 
   e2e_receiver)
-  echo -dockene " ***** Will Run End - To - End test |only receiver core| ***** \n"
-  pytest --show-capture=no /source_code/sync_tester/tests/test_receive_sync_core.py
-  ;;
+    echo -ne " ***** Will Run End - To - End test |only receiver core| ***** \n"
+    pytest --show-capture=no /source_code/sync_tester/tests/test_receive_sync_core.py
+    ;;
+
+  e2e_receiver_autonomic)
+    echo -ne " ***** Will Run End - To - End test |only receiver with autonomic upload core| ***** \n"
+    pytest --show-capture=no /source_code/sync_tester/tests/test_autonomic_sync_receive.py
+    ;;
 
   full)
     echo -ne " ***** Will Run full set of tests: e2e, failures, functional tests ***** \n"
