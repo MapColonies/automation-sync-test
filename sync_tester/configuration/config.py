@@ -191,6 +191,7 @@ NFS_TILES_DIR_B = _endpoints_discrete_ingestion_b.get('nfs_tiles_dir', '/tmp')
 BUFFER_TIMEOUT_CORE_B = _endpoints_discrete_ingestion_b.get('buffer_timeout', 70)
 
 # ============================================== PG Credential =========================================================
+PG_CONFIG_CORE_B = conf_receive_core.get('pg_connection_b')
 _pg_credentials_b = conf_receive_core.get('pg_credential_b')
 PG_ENDPOINT_URL_CORE_B = _pg_credentials_b.get('pg_endpoint_url', 'https://')
 PG_USER_CORE_B = _pg_credentials_b.get('pg_user', None)
