@@ -305,8 +305,8 @@ def trigger_orthphoto_history_sync(product_id, product_version):
     }
     resp = nifi_sync.send_sync_request(sync_request_body)
     s_code = resp['status_code']
-    msg = resp['msg']['message']
-
+    # msg = resp['msg']['message']
+    msg = resp['msg']
     if s_code == config.ResponseCode.Ok.value:
         _log.info(f'Request sync success:\n'
                   f'Status code: [{s_code}]\n'
