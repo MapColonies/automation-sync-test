@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="mc-sync-testing",
+    name="mc-sync-tester",
     author="MC",
     description="Map colonies automation infrastructure",
     long_description=long_description,

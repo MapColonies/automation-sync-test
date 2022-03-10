@@ -1,10 +1,11 @@
 """
 This module will wrap all functionality interfacing with data on DB (postgres)
 """
-
+import json
 import logging
 import copy
 from mc_automation_tools import postgres
+from mc_automation_tools.parse import stringy
 
 _log = logging.getLogger('sync_tester.cleanup_cli.postgres')
 
@@ -199,18 +200,99 @@ class PostgresHandler:
         :param product_id: string [layer's id]
         :param product_version: string [layer's version]
         :param product_type: string [layer's type] -> optional, if not mentioned, will remove all related jobs-tasks
-        :return: dict
+        :return: dict => {state: bool, msg: dict}
         """
 
-        pg_conn = self._get_connection_to_scheme(self.__job_manager_scheme)
+        _log.info(
+            "\n\n" + stringy.pad_with_stars(
+                f'Start Job manager DB cleaning for layer: [{product_id}:{product_version}]'))
+        try:
+            # collect id's for job and task to delete
+            job_ids = self._get_jobs_by_criteria(product_id, product_version, product_type)
+            if not job_ids:
+                _log.info(f'No jobs found for layer {product_id}:{product_version}')
+                report = {'state': False, 'msg': f'No jobs found for layer {product_id}:{product_version}'}
+            else:
+                job_ids = [job_id['id'] for job_id in job_ids]
+                _log.info(f'Found {len(job_ids)} jobs to delete')
+                # collect all relevant id of tasks related to job list
+                task_ids = self._get_tasks_by_id(job_ids)
+                _log.info(f'Found {len(task_ids)} tasks to delete')
+                # execute deletion
+                task_deletion_result = self._delete_tasks_by_job_id(job_ids)
+                job_deletion_result = self._delete_job_by_id(job_ids)
 
-        # collect id's for job and task to delete
-        job_ids = self._get_jobs_by_criteria(product_id, product_version, product_type)
-        job_ids = [job_id['id'] for job_id in job_ids]
+                report = {'state': True, 'msg': {
+                    'job_to_delete': len(job_ids),
+                    'task_to_delete': len(task_ids),
+                    'deleted_job': job_deletion_result,
+                    'deleted_task': task_deletion_result
+                }}
+                _log.info(f'\n delete results: [{json.dumps(report, indent=4)}]')
 
-        # collect all relevant id of tasks related to job list
-        task_ids = self._get_tasks_by_id(job_ids)
+        except Exception as e:
+            _log.error(f'Failed execute deletion on job manager db with error: [{str(e)}]')
+            report = {'state': False, 'msg': f'Failed execute deletion on job manager db with error: [{str(e)}]'}
+        _log.info('\n' + stringy.pad_with_minus('End of Job manager DB deletion') + '\n')
+        return report
 
-        resp = self._delete_tasks_by_job_id(job_ids)
-        resp2 = self._delete_job_by_id(job_ids)
-        # pg_conn.delete_row_by_id(table_name=self.__job_manager_tasks_table, )
+    # ============================================ layer spec ==========================================================
+    def get_tile_counter_rows(self, layer_id, target=None):
+        """
+        This method will query and find all records of tile counter (layer spec) for provided layer id
+        :param layer_id: string => [product_id-product_version]
+        :param target: string => default None and will search for all targets
+        :return: list[dict] => records
+        """
+        pg_conn = self._get_connection_to_scheme(self.__layer_spec_scheme)
+        criteria = {
+            'layerId': layer_id
+        }
+        if target:
+            criteria['target'] = target
+
+        tiles_counter_records = pg_conn.get_rows_by_keys(table_name=self.__tiles_counter_table,
+                                                         keys_values=criteria,
+                                                         return_as_dict=True
+                                                         )
+
+        return tiles_counter_records
+
+    def _delete_tile_counter_by_layer(self, layer_id):
+        pg_conn = self._get_connection_to_scheme(self.__layer_spec_scheme)
+        results = pg_conn.delete_row_by_id(self.__tiles_counter_table, "layerId", layer_id)
+        return results
+
+    def delete_tile_counter_by_layer(self, product_id, product_version, target=None):
+        """
+        This method will execute clean on layers spec db and remove related tile count for provided layer
+        :param product_id: string [layer's id]
+        :param product_version: string [layer's version]
+        :param target: string => default is None and will delete all layer's records
+        :return: dict => {state: bool, msg: dict}
+        """
+        _log.info(
+            "\n\n" + stringy.pad_with_stars(
+                f'Start Job manager DB cleaning for layer: [{product_id}-{product_version}]'))
+        layer_id = "-".join([product_id, product_version])
+
+        try:
+            tiles_counter_records = self.get_tile_counter_rows(layer_id=layer_id, target=target)
+            if not tiles_counter_records:
+                _log.info(f'Records not found for layer: [{layer_id}]')
+                report = {'state': False, 'msg': f'Records not found for layer: [{layer_id}]'}
+            else:
+                _log.info(f'Found {len(tiles_counter_records)} records to delete:\n'
+                          f'{json.dumps(tiles_counter_records, indent=4)}')
+                resp = self._delete_tile_counter_by_layer(layer_id)
+                _log.info(f'Records deletion were executed with state: {resp}')
+                report = {'state': True, 'msg': resp}
+
+        except Exception as e:
+            _log.error(f'Failed tile counter DB clean up with error: [{str(e)}')
+            report = {'state': False, 'msg': f'Failed tile counter DB clean up with error: [{str(e)}'}
+
+        _log.info('\n' + stringy.pad_with_minus('End of layer spec - tile counter DB deletion') + '\n')
+        return report
+
+

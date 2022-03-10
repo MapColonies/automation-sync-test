@@ -61,7 +61,6 @@ def run_ingestion():
     #     mapproxy_length = None
 
     ingestion_data = {}
-    stringy.pad_with_stars('Start preparing for ingestion')
     _log.info(
         '\n\n' + stringy.pad_with_stars('Start preparing for ingestion'))
 
