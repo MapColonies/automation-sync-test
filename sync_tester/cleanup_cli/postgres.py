@@ -273,7 +273,7 @@ class PostgresHandler:
         """
         _log.info(
             "\n\n" + stringy.pad_with_stars(
-                f'Start Job manager DB cleaning for layer: [{product_id}-{product_version}]'))
+                f'Start tile counter - layer spec DB cleaning for layer: [{product_id}-{product_version}]'))
         layer_id = "-".join([product_id, product_version])
 
         try:
@@ -295,4 +295,154 @@ class PostgresHandler:
         _log.info('\n' + stringy.pad_with_minus('End of layer spec - tile counter DB deletion') + '\n')
         return report
 
+    # ======================================= Catalog manager PYCSW ====================================================
 
+    def get_raster_records_rows(self, product_id, product_version, product_type=None):
+        """
+        This method will query for all records on Catalog DB related to provided layer
+        If product type not mentioned, it will return all types
+        :param product_id: string [layer's id]
+        :param product_version: string [layer's version]
+        :param product_type: string [layer's type] -> optional, if not mentioned, will return all records for layer
+        :return: list[dict]
+        """
+        pg_conn = self._get_connection_to_scheme(self.__catalog_manager_scheme)
+        criteria = {
+            'product_id': product_id,
+            'product_version': product_version
+        }
+        if product_type:
+            criteria['product_type'] = product_type
+
+        pycsw_records = pg_conn.get_rows_by_keys(table_name=self.__catalog_records_table,
+                                                 keys_values=criteria,
+                                                 return_as_dict=True
+                                                 )
+
+        return pycsw_records
+
+    def _delete_pycsw_records(self, product_id, product_version, product_type=None):
+        """
+        This method will execute clean on pycsw records DB and remove related layer's records
+        If product_type not provided, will remove all layer's records
+        :param product_id: string [layer's id]
+        :param product_version: string [layer's version]
+        :param product_type: string [layer's type] -> optional, if not mentioned, will remove all records for layer
+        :return: dict => {state: bool, msg: dict}
+        """
+        records = self.get_raster_records_rows(product_id, product_version, product_type)
+        results = []
+        for record in records:
+            pg_conn = self._get_connection_to_scheme(self.__catalog_manager_scheme)
+            resp = pg_conn.delete_row_by_id(self.__catalog_records_table, "identifier", record['identifier'])
+            results.append(resp)
+        return results
+
+        _log.info('\n' + stringy.pad_with_minus('End of layer spec - tile counter DB deletion') + '\n')
+        return report
+
+    def delete_record_by_layer(self, product_id, product_version, product_type=None):
+        """
+        This method will execute clean on raster record DB and remove related records
+        :param product_id: string [layer's id]
+        :param product_version: string [layer's version]
+        :param product_type: string [layer's type] -> optional, if not mentioned, will delete all records for layer
+        :return: dict => {state: bool, msg: dict}
+        """
+        _log.info(
+            "\n\n" + stringy.pad_with_stars(
+                f'Start Catalog manager DB cleaning for layer: [{product_id}-{product_version}]'))
+
+        pycsw_records = self.get_raster_records_rows(product_id=product_id,
+                                                     product_version=product_version,
+                                                     product_type=product_type)
+        if not pycsw_records:
+            _log.info(f'Records not found for layer: [{product_id}-{product_version}]')
+            report = {'state': False, 'msg': f'Records not found for layer: [{product_id}-{product_version}]'}
+
+        else:
+            _log.info(f'Found {len(pycsw_records)} records to delete:\n'
+                      f'To see records run with log level - DEBUG')
+            _log.debug(f'{json.dumps(pycsw_records, indent=4, sort_keys=True, default=str, ensure_ascii=False)}')
+            resp = self._delete_pycsw_records(product_id, product_version, product_type)
+            _log.info(f'Records deletion were executed with state: {resp}')
+            report = {'state': True, 'msg': resp}
+
+        _log.info('\n' + stringy.pad_with_minus('End of raster records pycsw DB deletion') + '\n')
+
+        return report
+
+    # ============================================= Mapproxy config ====================================================
+
+    def _delete_mapproxy_config(self, layer_names):
+        """
+        This method will execute clean on mapproxy config DB and remove related layer's configs
+        :param layer_names: list -> layer to delete
+        :return: dict => {state: bool, msg: dict}
+        """
+        result = []
+        for layer_name in layer_names:
+            pg_conn = self._get_connection_to_scheme(self.__mapproxy_scheme)
+            resp = pg_conn.delete_by_json_key(table_name=self.__mapproxy_config_table,
+                                              pk="data",
+                                              canonic_keys=["caches"],
+                                              value=layer_name)
+            result.append({"layer": layer_name, "result": resp})
+        return result
+
+    def get_mapproxy_config(self, product_id, product_version=None):
+        """
+        This method will query for all configs of mapproxy on  DB related to provided layer
+        :param product_id: string [layer's id]
+        :param product_version: string [layer's version]
+        :return: list[dict]
+        """
+
+        # ****** for compatibility -> user provide unused variable product_version
+        pg_conn = self._get_connection_to_scheme(self.__mapproxy_scheme)
+        criteria = ["caches"]
+
+        # todo - may change to single layer type -> orthophoto on future sync version
+        orthophoto = "-".join([product_id, "Orthophoto"])
+        orthophotoHistory = "-".join([product_id, product_version, "OrthophotoHistory"])
+
+        layers_names = [orthophoto, orthophotoHistory]
+        layers = {layer: pg_conn.get_by_json_key(table_name=self.__mapproxy_config_table,
+                                                 pk="data",
+                                                 canonic_keys=criteria,
+                                                 value=layer
+                                                 ) for layer in layers_names}
+
+        return layers
+
+    def delete_config_mapproxy(self, product_id, product_version):
+        """
+        This method will execute clean on raster mapproxy config DB and remove related configs with related layer
+        :param product_id: string [layer's id]
+        :param product_version: string [layer's version]
+        :return: dict => {state: bool, msg: dict}
+        """
+        _log.info(
+            "\n\n" + stringy.pad_with_stars(
+                f'Start Mapproxy config DB cleaning for layer: [{product_id}-{product_version}]'))
+
+        mapproxy_layers = self.get_mapproxy_config(product_id=product_id,
+                                                   product_version=product_version,
+                                                   )
+        layer_to_delete = [layer for layer in mapproxy_layers.items() if len(layer[1]) > 0]
+        if not len(layer_to_delete):
+            _log.info(f'Not found configs for layer: [{product_id}]')
+            report = {'state': False, 'msg': f'Not found configs for layer: [{product_id}]'}
+
+        else:
+            _log.info(f'Found {len(layer_to_delete)} mapproxy configs to delete:\n'
+                      f'To see configs run with log level - DEBUG')
+            _log.debug(f'{json.dumps(layer_to_delete, indent=4, sort_keys=True, default=str, ensure_ascii=False)}')
+            layer_names = [layer_names[0] for layer_names in layer_to_delete]
+            resp = self._delete_mapproxy_config(layer_names=layer_names)
+            _log.info(f'Configs deletion were executed with state: {json.dumps(resp, indent=4)}')
+            report = {'state': True, 'msg': resp}
+
+        _log.info('\n' + stringy.pad_with_minus('End of Mapproxy configs DB deletion') + '\n')
+
+        return report
