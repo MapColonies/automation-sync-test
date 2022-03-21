@@ -139,6 +139,7 @@ INGESTION_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('ingestion_timeou
 BUFFER_TIMEOUT_CORE_A = _endpoints_discrete_ingestion_a.get('buffer_timeout', 70)
 
 # ============================================== PG Credential =========================================================
+PG_CONFIG_CORE_A = conf_send_core.get('pg_connection_a')
 _pg_credentials_a = conf_send_core.get('pg_credential')
 PG_ENDPOINT_URL_CORE_A = _pg_credentials_a.get('pg_endpoint_url', 'https://')
 PG_PORT_A = _pg_credentials_a.get('pg_port', 5432)

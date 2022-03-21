@@ -4,6 +4,8 @@ This module will wrap all functionality interfacing with data on s3 (tiles)
 import logging
 import json
 from mc_automation_tools import s3storage
+from mc_automation_tools.parse import stringy
+
 _log = logging.getLogger('sync_tester.cleanup_cli.s3')
 
 
@@ -77,19 +79,10 @@ class S3Handler:
         :param layer_name: Full name of layer
         :return: list
         """
-        if not self.is_object_exists(layer_name):
-            _log.info(f'Current object key not exists!')
-            return []
 
         try:
             s3_conn = self._submit_connection()
             res = s3_conn.list_folder_content(bucket_name=self._bucket, directory_name=layer_name)
-            _log.info(f'Bucket: [{self._bucket}] | Object key: [{layer_name}] include [{len(res)}] items\n'
-                      f'To list all items in object, run on DEBUG log level...')
-            _log.debug(
-                f"Items that found:\n"
-                f"{json.dumps(res,indent=1)}")
-
             return res
 
         except Exception as e:
@@ -125,5 +118,44 @@ class S3Handler:
             err = f'Failed connect and access data with error: [{str(e)}'
             _log.error(err)
             raise ConnectionError(err)
+
+    def clean_layer_from_s3(self, layer_name):
+        """
+        This method will validate exists of layer's tiles on s3 and remove tiles
+        :param layer_name: represent the object key inside the configured bucket
+        :return: dict
+        """
+
+        _log.info(
+            "\n\n" + stringy.pad_with_stars(
+                f'Start S3 tiles cleaning for layer: [{layer_name}]'))
+
+        if not self.is_object_exists(layer_name):
+            _log.info(f'Current object key not exists!')
+            return {'state': False, 'msg': f'Current object key not exists! [{layer_name}]'}
+
+        try:
+            list_of_tiles = self.list_object(layer_name)
+
+            _log.info(f'Bucket: [{self._bucket}] | Object key: [{layer_name}] include [{len(list_of_tiles)}] items\n'
+                      f'To list all items in object, run on DEBUG log level...')
+            _log.debug(
+                f"Items that found:\n"
+                f"{json.dumps(list_of_tiles, indent=1)}")
+
+            _log.info(f'Will execute cleanup for {layer_name} object, contain: {len(list_of_tiles)} tiles')
+
+            remove_results = self.remove_layer_from_bucket(layer_name)
+
+            _log.info(f'Results status for deletion:\n'
+                      f'Deletion complete: [{remove_results["state"]}]\n'
+                      f'Result deletion state: [{remove_results["msg"]}]\n'
+                      f'Result extra data: [{json.dumps(remove_results["extra"], indent=3)}]')
+
+            return {'state': True, 'msg': f'Layer - {layer_name}, deleted {len(list_of_tiles)} items'}
+
+        except Exception as e:
+            _log.error(f'Failed execute deletion from S3 with error: {str(e)}')
+            raise Exception(f'Failed execute deletion from S3 with error: {str(e)}')
 
 
