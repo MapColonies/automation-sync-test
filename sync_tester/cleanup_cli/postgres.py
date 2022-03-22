@@ -205,7 +205,7 @@ class PostgresHandler:
 
         _log.info(
             "\n\n" + stringy.pad_with_stars(
-                f'Start Job manager DB cleaning for layer: [{product_id}:{product_version}]'))
+                f'Start Job manager DB cleaning for layer: [{product_id}:{product_version}]', length=140))
         try:
             # collect id's for job and task to delete
             job_ids = self._get_jobs_by_criteria(product_id, product_version, product_type)
@@ -233,7 +233,7 @@ class PostgresHandler:
         except Exception as e:
             _log.error(f'Failed execute deletion on job manager db with error: [{str(e)}]')
             report = {'state': False, 'msg': f'Failed execute deletion on job manager db with error: [{str(e)}]'}
-        _log.info('\n' + stringy.pad_with_minus('End of Job manager DB deletion') + '\n')
+        _log.info('\n' + stringy.pad_with_minus('End of Job manager DB deletion', length=140) + '\n')
         return report
 
     # ============================================ layer spec ==========================================================
@@ -273,7 +273,7 @@ class PostgresHandler:
         """
         _log.info(
             "\n\n" + stringy.pad_with_stars(
-                f'Start tile counter - layer spec DB cleaning for layer: [{product_id}-{product_version}]'))
+                f'Start tile counter - layer spec DB cleaning for layer: [{product_id}-{product_version}]', length=140))
         layer_id = "-".join([product_id, product_version])
 
         try:
@@ -292,7 +292,7 @@ class PostgresHandler:
             _log.error(f'Failed tile counter DB clean up with error: [{str(e)}')
             report = {'state': False, 'msg': f'Failed tile counter DB clean up with error: [{str(e)}'}
 
-        _log.info('\n' + stringy.pad_with_minus('End of layer spec - tile counter DB deletion') + '\n')
+        _log.info('\n' + stringy.pad_with_minus('End of layer spec - tile counter DB deletion', length=140) + '\n')
         return report
 
     # ======================================= Catalog manager PYCSW ====================================================
@@ -335,10 +335,10 @@ class PostgresHandler:
         for record in records:
             pg_conn = self._get_connection_to_scheme(self.__catalog_manager_scheme)
             resp = pg_conn.delete_row_by_id(self.__catalog_records_table, "identifier", record['identifier'])
-            results.append(resp)
+            results.append({record['product_type']: resp})
         return results
 
-        _log.info('\n' + stringy.pad_with_minus('End of layer spec - tile counter DB deletion') + '\n')
+        _log.info('\n' + stringy.pad_with_minus('End of layer spec - tile counter DB deletion', length=140) + '\n')
         return report
 
     def delete_record_by_layer(self, product_id, product_version, product_type=None):
@@ -351,7 +351,7 @@ class PostgresHandler:
         """
         _log.info(
             "\n\n" + stringy.pad_with_stars(
-                f'Start Catalog manager DB cleaning for layer: [{product_id}-{product_version}]'))
+                f'Start Catalog manager DB cleaning for layer: [{product_id}-{product_version}]', length=140))
 
         pycsw_records = self.get_raster_records_rows(product_id=product_id,
                                                      product_version=product_version,
@@ -368,7 +368,7 @@ class PostgresHandler:
             _log.info(f'Records deletion were executed with state: {resp}')
             report = {'state': True, 'msg': resp}
 
-        _log.info('\n' + stringy.pad_with_minus('End of raster records pycsw DB deletion') + '\n')
+        _log.info('\n' + stringy.pad_with_minus('End of raster records pycsw DB deletion', length=140) + '\n')
 
         return report
 
@@ -415,7 +415,7 @@ class PostgresHandler:
 
         return layers
 
-    def delete_config_mapproxy(self, product_id, product_version):
+    def remove_config_mapproxy(self, product_id, product_version):
         """
         This method will execute clean on raster mapproxy config DB and remove related configs with related layer
         :param product_id: string [layer's id]
@@ -424,7 +424,7 @@ class PostgresHandler:
         """
         _log.info(
             "\n\n" + stringy.pad_with_stars(
-                f'Start Mapproxy config DB cleaning for layer: [{product_id}-{product_version}]'))
+                f'Start Mapproxy config DB cleaning for layer: [{product_id}-{product_version}]', length=140))
 
         mapproxy_layers = self.get_mapproxy_config(product_id=product_id,
                                                    product_version=product_version,
@@ -443,6 +443,83 @@ class PostgresHandler:
             _log.info(f'Configs deletion were executed with state: {json.dumps(resp, indent=4)}')
             report = {'state': True, 'msg': resp}
 
-        _log.info('\n' + stringy.pad_with_minus('End of Mapproxy configs DB deletion') + '\n')
+        _log.info('\n' + stringy.pad_with_minus('End of Mapproxy configs DB deletion', length=140) + '\n')
+
+        return report
+
+    # ============================================ Agent config ========================================================
+
+    def _delete_agent_db_records(self, product_id, product_version):
+        """
+        This method will execute clean on mapproxy config DB and remove related layer's configs
+        :param product_id: str -> resource id
+        :param product_version: str -> version
+        :return: dict => {state: bool, msg: dict}
+        """
+        records = self.get_agent_db_record(product_id, product_version)
+        result = []
+        for record in records:
+            pg_conn = self._get_connection_to_scheme(self.__discrete_agent_scheme)
+            resp = pg_conn.delete_row_by_id(table_name=self.__discrete_agent_table,
+                                            pk="directory",
+                                            pk_value=record['directory']
+                                            )
+            res_per_iter = {"data": {'directory': record['directory'],
+                                     'product_id': product_id,
+                                     'product_version': product_version},
+                            "result": resp}
+            result.append(res_per_iter)
+
+        return result
+
+    def get_agent_db_record(self, product_id, product_version=None, return_as_dict=True):
+        """
+        This method will query for all records of agent DB related to provided layer
+        :param product_id: string [layer's id]
+        :param product_version: string [layer's version]
+        :param return_as_dict: bool -> The results as default returned as key value dict
+        :return: list[dict]
+        """
+
+        pg_conn = self._get_connection_to_scheme(self.__discrete_agent_scheme)
+        layer_params = {
+            'layerId': product_id,
+            'version': product_version
+        }
+        agent_records = pg_conn.get_rows_by_keys(table_name=self.__discrete_agent_table,
+                                                 keys_values=layer_params,
+                                                 return_as_dict=return_as_dict
+                                                 )
+
+        return agent_records
+
+    def remove_agent_db_record(self, product_id, product_version):
+        """
+       This method will execute clean on raster agent DB and remove related records with related layer ( watch
+       directories cleanup
+       :param product_id: string [layer's id]
+       :param product_version: string [layer's version]
+       :return: dict => {state: bool, msg: dict}
+       """
+        _log.info(
+            "\n\n" + stringy.pad_with_stars(
+                f'Start Agent DB cleaning for layer: [{product_id}-{product_version}]', length=140))
+
+        agent_records = self.get_agent_db_record(product_id=product_id,
+                                                 product_version=product_version,
+                                                 )
+        if not len(agent_records):
+            msg = f'Agent records Not found  for layer: [{product_id}-{product_version}]'
+            _log.info(msg)
+            report = {'state': False, 'msg': msg}
+
+        else:
+            _log.info(f'Found {len(agent_records)} Agent records to delete:')
+            _log.info(f'{json.dumps(agent_records, indent=4, sort_keys=True, default=str, ensure_ascii=False)}')
+            resp = self._delete_agent_db_records(product_id=product_id, product_version=product_version)
+            _log.info(f'Records deletion were executed with state: {json.dumps(resp, indent=4)}')
+            report = {'state': True, 'msg': resp}
+
+        _log.info('\n' + stringy.pad_with_minus('End of Agent DB deletion', length=140) + '\n')
 
         return report

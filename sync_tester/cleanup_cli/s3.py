@@ -128,10 +128,11 @@ class S3Handler:
 
         _log.info(
             "\n\n" + stringy.pad_with_stars(
-                f'Start S3 tiles cleaning for layer: [{layer_name}]'))
+                f'Start S3 tiles cleaning for layer: [{layer_name}]', length=140))
 
         if not self.is_object_exists(layer_name):
             _log.info(f'Current object key not exists!')
+            _log.info('\n' + stringy.pad_with_minus('S3 tiles cleaning', length=140) + '\n')
             return {'state': False, 'msg': f'Current object key not exists! [{layer_name}]'}
 
         try:
@@ -152,6 +153,7 @@ class S3Handler:
                       f'Result deletion state: [{remove_results["msg"]}]\n'
                       f'Result extra data: [{json.dumps(remove_results["extra"], indent=3)}]')
 
+            _log.info('\n' + stringy.pad_with_minus('S3 tiles cleaning', length=140) + '\n')
             return {'state': True, 'msg': f'Layer - {layer_name}, deleted {len(list_of_tiles)} items'}
 
         except Exception as e:
